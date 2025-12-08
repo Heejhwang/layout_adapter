@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bowling Layout Adapter</title>
+    <meta name="description" content="Professional Bowling Layout Converter and PAP Adjustment Tool">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <header class="main-header">
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                </svg>
+                <span data-i18n="app_title">Layout Adapter</span>
+            </div>
+
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <button id="lang-toggle" class="nav-btn" style="border: 1px solid var(--glass-border);">한국어</button>
+                <nav class="nav-tabs">
+                    <button class="nav-btn active" data-target="converter" data-i18n="tab_converter">Layout
+                        Converter</button>
+                    <button class="nav-btn" data-target="pap-adjuster" data-i18n="tab_adjuster">PAP Adjuster</button>
+                </nav>
+            </div>
+        </header>
+
+        <main>
+            <!-- Section 1: Layout Converter -->
+            <section id="converter" class="view active">
+                <div class="card glass-panel">
+                    <h2 data-i18n="sec_converter_title">Layout Conversion</h2>
+                    <p class="subtitle" data-i18n="sec_converter_desc">Convert between Dual Angle, VLS, and 2LS systems.
+                    </p>
+
+                    <div class="pap-bar glass-panel-light">
+                        <h3 data-i18n="pap_common_title">Bowler's PAP (Common)</h3>
+                        <div class="form-row compact">
+                            <div class="field">
+                                <label data-i18n="label_over">Over</label>
+                                <input type="text" id="converter-pap-over" placeholder='e.g. 5"' value="5">
+                            </div>
+                            <div class="field">
+                                <label data-i18n="label_up">Up</label>
+                                <input type="text" id="converter-pap-up" placeholder='e.g. 1 1/8"' value="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="converter-grid">
+                        <!-- Input Column -->
+                        <div class="input-group">
+                            <h3 data-i18n="grp_source">Source Layout</h3>
+
+                            <label for="source-system" data-i18n="label_system">System</label>
+                            <div class="select-wrapper">
+                                <select id="source-system">
+                                    <option value="dual_angle" data-i18n="sys_dual_angle">Dual Angle</option>
+                                    <option value="vls" data-i18n="sys_vls">Pin Buffer (VLS)</option>
+                                    <option value="2ls" data-i18n="sys_2ls">2LS</option>
+                                </select>
+                            </div>
+
+                            <div id="source-inputs" class="inputs-container">
+                                <!-- Inputs will be injected by JS based on selection -->
+                            </div>
+                        </div>
+
+                        <!-- Arrow Icon -->
+                        <div class="exchange-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M5 12h14M12 5l7 7-7 7" />
+                            </svg>
+                        </div>
+
+                        <!-- Output Column -->
+                        <div class="output-group">
+                            <h3 data-i18n="grp_target">Target Layout</h3>
+
+                            <label for="target-system" data-i18n="label_system">System</label>
+                            <div class="select-wrapper">
+                                <select id="target-system">
+                                    <option value="dual_angle" data-i18n="sys_dual_angle">Dual Angle</option>
+                                    <option value="vls" selected data-i18n="sys_vls">Pin Buffer (VLS)</option>
+                                    <option value="2ls" data-i18n="sys_2ls">2LS</option>
+                                </select>
+                            </div>
+
+                            <div id="target-outputs" class="outputs-container">
+                                <!-- Outputs will be displayed here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 2: PAP Adjuster -->
+            <section id="pap-adjuster" class="view">
+                <div class="card glass-panel">
+                    <h2 data-i18n="sec_adj_title">PAP Adjustment</h2>
+                    <p class="subtitle" data-i18n="sec_adj_desc">Recalculate layout based on new Positive Axis Point.
+                    </p>
+
+                    <div class="pap-grid">
+                        <div class="input-column">
+                            <h3 data-i18n="grp_initial">Initial Data</h3>
+                            <div class="form-row">
+                                <div class="field">
+                                    <label data-i18n="label_old_pap_over">Old PAP (Over)</label>
+                                    <input type="text" id="old-pap-over" placeholder='e.g. 5"'>
+                                </div>
+                                <div class="field">
+                                    <label data-i18n="label_old_pap_up">Old PAP (Up/Down)</label>
+                                    <input type="text" id="old-pap-up" placeholder='e.g. 1 1/2"'>
+                                </div>
+                            </div>
+
+                            <div class="field">
+                                <label data-i18n="label_system">Layout System</label>
+                                <div class="select-wrapper">
+                                    <select id="adjuster-system">
+                                        <option value="dual_angle" data-i18n="sys_dual_angle">Dual Angle</option>
+                                        <option value="vls" data-i18n="sys_vls">Pin Buffer (VLS)</option>
+                                        <option value="2ls" data-i18n="sys_2ls">2LS</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="field">
+                                <label data-i18n="label_orig_layout">Original Layout Parameters</label>
+                                <div id="adjuster-inputs" class="inputs-container">
+                                    <!-- Dynamic inputs -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="input-column">
+                            <h3 data-i18n="grp_new">New Parameters</h3>
+                            <div class="form-row">
+                                <div class="field">
+                                    <label data-i18n="label_new_pap_over">New PAP (Over)</label>
+                                    <input type="text" id="new-pap-over" placeholder='e.g. 4 1/2"'>
+                                </div>
+                                <div class="field">
+                                    <label data-i18n="label_new_pap_up">New PAP (Up/Down)</label>
+                                    <input type="text" id="new-pap-up" placeholder='e.g. 7/8"'>
+                                </div>
+                            </div>
+
+                            <div id="pap-result" class="result-box-compact hidden">
+                                <span class="result-label" data-i18n="label_adj_result">Adjusted Layout:</span>
+                                <span class="result-value" id="pap-result-value">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+    <script src="i18n.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
