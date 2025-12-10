@@ -901,7 +901,7 @@ function validateLayoutGeometry(pin2pap, pin2cog, papOver, papUp) {
     const minPinCog = abs(pin2pap - pap2grip);
     const maxPinCog = Math.min(pin2pap + pap2grip, maxDistance);
 
-    const tolerance = 0.5;
+    const tolerance = 0.1;
     if (pin2cog < minPinCog - tolerance || pin2cog > maxPinCog + tolerance) {
         console.log(`Validation failed: pin2cog=${pin2cog} not in valid range [${minPinCog.toFixed(2)}, ${maxPinCog.toFixed(2)}]`);
         return false;
