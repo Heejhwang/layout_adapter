@@ -705,6 +705,14 @@ function calculateConversion() {
                 console.log(`Input validation failed: pin2pap=${pin} out of range`);
                 inputInvalid = true;
             }
+            // Convert to 2LS to check triangle inequality
+            if (!inputInvalid) {
+                const converted = daTo2ls(drill, pin, val, pap.over, pap.up);
+                if (!validateLayoutGeometry(pin, converted.val3, pap.over, pap.up)) {
+                    console.log(`Input validation failed: DA converts to invalid 2LS geometry`);
+                    inputInvalid = true;
+                }
+            }
         } else if (src === 'vls') {
             const pin = inputs['vls_pin'];
             const psa = inputs['vls_psa'];
@@ -727,6 +735,14 @@ function calculateConversion() {
                 console.log(`Input validation failed: psa(${psa}) > pin(${pin}) is geometrically impossible`);
                 inputInvalid = true;
             }
+            // Convert to 2LS to check triangle inequality
+            if (!inputInvalid) {
+                const converted = vlsTo2ls(pin, psa, buffer, pap.over, pap.up);
+                if (!validateLayoutGeometry(pin, converted.val3, pap.over, pap.up)) {
+                    console.log(`Input validation failed: VLS converts to invalid 2LS geometry`);
+                    inputInvalid = true;
+                }
+            }
         } else if (src === '2ls') {
             const pin = inputs['2ls_pin'];
             const psa = inputs['2ls_psa'];
@@ -737,6 +753,16 @@ function calculateConversion() {
             }
             if (pin > 6.75 || psa > 6.75 || cog > 6.75) {
                 console.log(`Input validation failed: 2LS values too large`);
+                inputInvalid = true;
+            }
+            // PSA cannot exceed pin
+            if (psa > pin) {
+                console.log(`Input validation failed: psa(${psa}) > pin(${pin}) is geometrically impossible`);
+                inputInvalid = true;
+            }
+            // Triangle inequality for Pin-PAP-Grip triangle
+            if (!inputInvalid && !validateLayoutGeometry(pin, cog, pap.over, pap.up)) {
+                console.log(`Input validation failed: pin to cog violates triangle inequality`);
                 inputInvalid = true;
             }
         }
