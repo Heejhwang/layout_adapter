@@ -25,9 +25,9 @@
                 <span data-i18n="app_title">Layout Adapter</span>
             </div>
 
-            <div style="display: flex; gap: 1rem; align-items: center;">
+            <div class="header-controls">
                 <!-- Bowler Settings -->
-                <div class="bowler-settings" style="display: flex; gap: 0.5rem; align-items: center;">
+                <div class="bowler-settings">
                     <select id="hand-select" class="compact-select" title="Hand">
                         <option value="right" data-i18n="opt_right_hand">Right</option>
                         <option value="left" data-i18n="opt_left_hand">Left</option>
@@ -37,7 +37,7 @@
                         <option value="thumbless" data-i18n="opt_thumbless">Thumbless</option>
                     </select>
                 </div>
-                <button id="lang-toggle" class="nav-btn" style="border: 1px solid var(--glass-border);">한국어</button>
+                <button id="lang-toggle" class="nav-btn lang-btn">한국어</button>
                 <nav class="nav-tabs">
                     <button class="nav-btn active" data-target="converter" data-i18n="tab_converter">Layout
                         Converter</button>
