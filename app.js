@@ -717,6 +717,16 @@ function calculateConversion() {
                 console.log(`Input validation failed: VLS values too large`);
                 inputInvalid = true;
             }
+            // VLS geometric constraint: buffer cannot exceed pin to PAP
+            if (buffer > pin) {
+                console.log(`Input validation failed: buffer(${buffer}) > pin(${pin}) is geometrically impossible`);
+                inputInvalid = true;
+            }
+            // PSA cannot exceed pin (PSA is closer to PAP)
+            if (psa > pin) {
+                console.log(`Input validation failed: psa(${psa}) > pin(${pin}) is geometrically impossible`);
+                inputInvalid = true;
+            }
         } else if (src === '2ls') {
             const pin = inputs['2ls_pin'];
             const psa = inputs['2ls_psa'];
@@ -751,6 +761,15 @@ function calculateConversion() {
             }
             if (result.val1 > 6.75 || result.val2 > 6.75 || result.val3 > 6.75) {
                 console.log(`Validation failed: VLS values too large`);
+                isValid = false;
+            }
+            // VLS geometric constraints
+            if (result.val3 > result.val1) {
+                console.log(`Validation failed: buffer(${result.val3}) > pin(${result.val1})`);
+                isValid = false;
+            }
+            if (result.val2 > result.val1) {
+                console.log(`Validation failed: psa(${result.val2}) > pin(${result.val1})`);
                 isValid = false;
             }
         } else if (tgt === '2ls') {
