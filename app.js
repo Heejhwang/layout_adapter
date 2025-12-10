@@ -730,11 +730,7 @@ function calculateConversion() {
                 console.log(`Input validation failed: buffer(${buffer}) > pin(${pin}) is geometrically impossible`);
                 inputInvalid = true;
             }
-            // PSA cannot exceed pin (PSA is closer to PAP)
-            if (psa > pin) {
-                console.log(`Input validation failed: psa(${psa}) > pin(${pin}) is geometrically impossible`);
-                inputInvalid = true;
-            }
+            // Note: PSA to PAP CAN be greater than Pin to PAP (e.g., drilling angle > 60°)
             // Convert to 2LS to check triangle inequality
             if (!inputInvalid) {
                 const converted = vlsTo2ls(pin, psa, buffer, pap.over, pap.up);
@@ -755,11 +751,7 @@ function calculateConversion() {
                 console.log(`Input validation failed: 2LS values too large`);
                 inputInvalid = true;
             }
-            // PSA cannot exceed pin
-            if (psa > pin) {
-                console.log(`Input validation failed: psa(${psa}) > pin(${pin}) is geometrically impossible`);
-                inputInvalid = true;
-            }
+            // Note: PSA to PAP CAN be greater than Pin to PAP (e.g., drilling angle > 60°)
             // Triangle inequality for Pin-PAP-Grip triangle
             if (!inputInvalid && !validateLayoutGeometry(pin, cog, pap.over, pap.up)) {
                 console.log(`Input validation failed: pin to cog violates triangle inequality`);
@@ -794,10 +786,7 @@ function calculateConversion() {
                 console.log(`Validation failed: buffer(${result.val3}) > pin(${result.val1})`);
                 isValid = false;
             }
-            if (result.val2 > result.val1) {
-                console.log(`Validation failed: psa(${result.val2}) > pin(${result.val1})`);
-                isValid = false;
-            }
+            // Note: PSA to PAP CAN be greater than Pin to PAP (e.g., drilling angle > 60°)
         } else if (tgt === '2ls') {
             // All distances should be non-negative
             if (result.val1 < 0 || result.val2 < 0 || result.val3 < 0) {
