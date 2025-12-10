@@ -42,14 +42,21 @@ body {
 /* Header */
 .main-header {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: 1rem;
     margin-bottom: 3rem;
     padding: 1rem;
     background: rgba(15, 23, 42, 0.6);
     backdrop-filter: blur(10px);
     border-radius: 16px;
     border: 1px solid var(--glass-border);
+}
+
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
 }
 
 .logo {
@@ -381,7 +388,7 @@ input:focus {
     }
 
     .logo {
-        justify-content: center;
+        font-size: 1.1rem;
     }
 
     .header-controls {
@@ -393,7 +400,6 @@ input:focus {
     .nav-tabs {
         width: 100%;
         justify-content: center;
-        order: 1;
     }
 
     .nav-btn {
@@ -406,13 +412,11 @@ input:focus {
     .bowler-settings {
         width: 100%;
         justify-content: center;
-        order: 2;
     }
 
     .lang-btn {
-        order: 3;
-        width: 100%;
-        text-align: center;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
     }
 
     .compact-select {

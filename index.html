@@ -15,17 +15,25 @@
 <body>
     <div class="app-container">
         <header class="main-header">
-            <div class="logo">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                    stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                </svg>
-                <span data-i18n="app_title">Layout Adapter</span>
+            <div class="header-top">
+                <div class="logo">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span data-i18n="app_title">Layout Adapter</span>
+                </div>
+                <button id="lang-toggle" class="nav-btn lang-btn">한국어</button>
             </div>
 
             <div class="header-controls">
+                <nav class="nav-tabs">
+                    <button class="nav-btn active" data-target="converter" data-i18n="tab_converter">Layout
+                        Converter</button>
+                    <button class="nav-btn" data-target="pap-adjuster" data-i18n="tab_adjuster">PAP Adjuster</button>
+                </nav>
                 <!-- Bowler Settings -->
                 <div class="bowler-settings">
                     <select id="hand-select" class="compact-select" title="Hand">
@@ -37,12 +45,6 @@
                         <option value="thumbless" data-i18n="opt_thumbless">Thumbless</option>
                     </select>
                 </div>
-                <button id="lang-toggle" class="nav-btn lang-btn">한국어</button>
-                <nav class="nav-tabs">
-                    <button class="nav-btn active" data-target="converter" data-i18n="tab_converter">Layout
-                        Converter</button>
-                    <button class="nav-btn" data-target="pap-adjuster" data-i18n="tab_adjuster">PAP Adjuster</button>
-                </nav>
             </div>
         </header>
 
