@@ -26,6 +26,17 @@
             </div>
 
             <div style="display: flex; gap: 1rem; align-items: center;">
+                <!-- Bowler Settings -->
+                <div class="bowler-settings" style="display: flex; gap: 0.5rem; align-items: center;">
+                    <select id="hand-select" class="compact-select" title="Hand">
+                        <option value="right" data-i18n="opt_right_hand">Right</option>
+                        <option value="left" data-i18n="opt_left_hand">Left</option>
+                    </select>
+                    <select id="grip-select" class="compact-select" title="Grip Type">
+                        <option value="3finger" data-i18n="opt_3finger">3-Finger</option>
+                        <option value="thumbless" data-i18n="opt_thumbless">Thumbless</option>
+                    </select>
+                </div>
                 <button id="lang-toggle" class="nav-btn" style="border: 1px solid var(--glass-border);">한국어</button>
                 <nav class="nav-tabs">
                     <button class="nav-btn active" data-target="converter" data-i18n="tab_converter">Layout
@@ -47,11 +58,11 @@
                         <h3 data-i18n="pap_common_title">Bowler's PAP (Common)</h3>
                         <div class="form-row compact">
                             <div class="field">
-                                <label data-i18n="label_over">Over</label>
+                                <label id="conv-pap-over-label" data-i18n="label_over_right">Over →</label>
                                 <input type="text" id="converter-pap-over" placeholder='e.g. 5"' value="5">
                             </div>
                             <div class="field">
-                                <label data-i18n="label_up">Up</label>
+                                <label data-i18n="label_up">Up ↑</label>
                                 <input type="text" id="converter-pap-up" placeholder='e.g. 1 1/8"' value="1">
                             </div>
                         </div>
@@ -102,6 +113,19 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Layout Validation Warning -->
+                    <div id="converter-warning" class="layout-warning hidden">
+                        <span id="converter-warning-text" data-i18n="warn_invalid_input">⚠️ 경고: 레이아웃 값이 현실적으로 불가능한
+                            값입니다.</span>
+                    </div>
+
+                    <!-- Embedded Visualizer for Converter -->
+                    <div id="vis-container-converter" class="vis-embedded glass-panel-light"
+                        style="margin-top: 1.5rem; height: 350px; border-radius: 8px; position: relative; overflow: hidden;">
+                        <!-- Canvas will move here -->
+                        <div class="vis-overlay" id="vis-overlay-converter" style="pointer-events: none;"></div>
+                    </div>
                 </div>
             </section>
 
@@ -117,11 +141,12 @@
                             <h3 data-i18n="grp_initial">Initial Data</h3>
                             <div class="form-row">
                                 <div class="field">
-                                    <label data-i18n="label_old_pap_over">Old PAP (Over)</label>
+                                    <label id="old-pap-over-label" data-i18n="label_old_pap_over_right">Old PAP
+                                        →</label>
                                     <input type="text" id="old-pap-over" placeholder='e.g. 5"'>
                                 </div>
                                 <div class="field">
-                                    <label data-i18n="label_old_pap_up">Old PAP (Up/Down)</label>
+                                    <label data-i18n="label_old_pap_up">Old PAP ↑</label>
                                     <input type="text" id="old-pap-up" placeholder='e.g. 1 1/2"'>
                                 </div>
                             </div>
@@ -148,11 +173,12 @@
                             <h3 data-i18n="grp_new">New Parameters</h3>
                             <div class="form-row">
                                 <div class="field">
-                                    <label data-i18n="label_new_pap_over">New PAP (Over)</label>
+                                    <label id="new-pap-over-label" data-i18n="label_new_pap_over_right">New PAP
+                                        →</label>
                                     <input type="text" id="new-pap-over" placeholder='e.g. 4 1/2"'>
                                 </div>
                                 <div class="field">
-                                    <label data-i18n="label_new_pap_up">New PAP (Up/Down)</label>
+                                    <label data-i18n="label_new_pap_up">New PAP ↑</label>
                                     <input type="text" id="new-pap-up" placeholder='e.g. 7/8"'>
                                 </div>
                             </div>
@@ -161,13 +187,37 @@
                                 <span class="result-label" data-i18n="label_adj_result">Adjusted Layout:</span>
                                 <span class="result-value" id="pap-result-value">--</span>
                             </div>
+
+                            <!-- PAP Adjuster Validation Warning -->
+                            <div id="adjuster-warning" class="layout-warning hidden">
+                                <span id="adjuster-warning-text" data-i18n="warn_unusual_output">⚠️ 경고: 레이아웃 값이 일반적이지
+                                    않습니다.</span>
+                            </div>
+
+                            <!-- Embedded Visualizer for Adjuster - inside second column -->
+                            <div id="vis-container-adjuster" class="vis-embedded glass-panel-light"
+                                style="margin-top: 1rem; height: 280px; border-radius: 8px; position: relative; overflow: hidden;">
+                                <!-- Canvas will move here -->
+                                <div class="vis-overlay" id="vis-overlay-adjuster" style="pointer-events: none;"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </section>
+
+            <!-- Section 3: Visualizer -->
+            </section>
+
+            <!-- Hidden Canvas holder (Initial) -->
+            <div id="canvas-holder" style="display:none;"></div>
         </main>
     </div>
+    <!-- Three.js Dependencies -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
     <script src="i18n.js"></script>
+    <script src="visualizer.js"></script>
     <script src="app.js"></script>
 </body>
 

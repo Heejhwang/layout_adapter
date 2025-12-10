@@ -20,6 +20,12 @@ const sqrt = (x) => Math.sqrt(x);
 const abs = (x) => Math.abs(x);
 const min = (a, b) => Math.min(a, b);
 
+// Expose Utils for Visualizer
+window.BowlingUtils = {
+    R, rad, deg, radFromInch, inchFromRad,
+    sin, cos, acos, asin, atan2, sqrt
+};
+
 // -- Formatting Utils --
 const gcd = (a, b) => b ? gcd(b, a % b) : a;
 
@@ -87,6 +93,10 @@ function formatAngle(value) {
 
 // -- State Management --
 const state = {
+    common: {
+        hand: 'right',      // 'right' or 'left'
+        grip: '3finger'     // '3finger' or 'thumbless'
+    },
     converter: {
         sourceSystem: 'dual_angle',
         targetSystem: 'vls',
@@ -98,6 +108,11 @@ const state = {
         inputs: {},
     }
 };
+
+
+
+// -- Visualizer --
+let visualizer = null;
 
 // -- DOM Elements --
 let dom = {};
@@ -137,6 +152,10 @@ function init() {
         tabs: document.querySelectorAll('.nav-tabs .nav-btn'),
         views: document.querySelectorAll('.view'),
 
+        // Bowler Settings
+        handSelect: document.getElementById('hand-select'),
+        gripSelect: document.getElementById('grip-select'),
+
         // Converter Selects
         sourceSystemSelect: document.getElementById('source-system'),
         targetSystemSelect: document.getElementById('target-system'),
@@ -164,6 +183,7 @@ function init() {
         papResultValue: document.getElementById('pap-result-value'),
     };
 
+    setupBowlerSettings();
     setupTabs();
     setupConverter();
     setupPapAdjuster();
@@ -173,6 +193,69 @@ function init() {
     // Initial PAP sync
     if (dom.convPapOver) state.converter.pap.over = parseFraction(dom.convPapOver.value) || 5;
     if (dom.convPapUp) state.converter.pap.up = parseFraction(dom.convPapUp.value) || 1;
+
+    // Init Visualizer
+    try {
+        if (typeof THREE !== 'undefined' && typeof BowlingVisualizer !== 'undefined') {
+            visualizer = new BowlingVisualizer(null);
+
+            // Initial attach to converter view
+            const container = document.getElementById('vis-container-converter');
+            if (container) visualizer.attachTo(container);
+
+            // Update visualizer with current settings
+            if (visualizer) {
+                visualizer.setGripType(state.common.grip);
+                visualizer.setHand(state.common.hand);
+            }
+        }
+    } catch (e) {
+        console.error("Failed to initialize Visualizer:", e);
+    }
+}
+
+// -- Bowler Settings --
+function setupBowlerSettings() {
+    if (dom.handSelect) {
+        dom.handSelect.addEventListener('change', (e) => {
+            state.common.hand = e.target.value;
+            if (visualizer) visualizer.setHand(e.target.value);
+            updatePapLabels(e.target.value);
+        });
+    }
+
+    if (dom.gripSelect) {
+        dom.gripSelect.addEventListener('change', (e) => {
+            state.common.grip = e.target.value;
+            if (visualizer) visualizer.setGripType(e.target.value);
+        });
+    }
+}
+
+function updatePapLabels(hand) {
+    // Update all PAP "Over" labels based on hand (right → / left ←)
+    const suffix = hand === 'left' ? '_left' : '_right';
+
+    // Converter PAP
+    const convLabel = document.getElementById('conv-pap-over-label');
+    if (convLabel) {
+        convLabel.setAttribute('data-i18n', 'label_over' + suffix);
+        convLabel.textContent = t('label_over' + suffix);
+    }
+
+    // PAP Adjuster - Old PAP
+    const oldLabel = document.getElementById('old-pap-over-label');
+    if (oldLabel) {
+        oldLabel.setAttribute('data-i18n', 'label_old_pap_over' + suffix);
+        oldLabel.textContent = t('label_old_pap_over' + suffix);
+    }
+
+    // PAP Adjuster - New PAP
+    const newLabel = document.getElementById('new-pap-over-label');
+    if (newLabel) {
+        newLabel.setAttribute('data-i18n', 'label_new_pap_over' + suffix);
+        newLabel.textContent = t('label_new_pap_over' + suffix);
+    }
 }
 
 // -- Tabs Logic --
@@ -184,6 +267,15 @@ function setupTabs() {
             tab.classList.add('active');
             const target = tab.dataset.target;
             document.getElementById(target).classList.add('active');
+
+            // Move Visualizer to active view
+            if (visualizer) {
+                const containerId = target === 'converter' ? 'vis-container-converter' : 'vis-container-adjuster';
+                const container = document.getElementById(containerId);
+                if (container) {
+                    visualizer.attachTo(container);
+                }
+            }
         });
     });
 }
@@ -499,6 +591,44 @@ function calculateAdjuster() {
     }
 
     dom.papResultValue.textContent = displayString;
+
+    // Validate adjusted result
+    const adjusterWarning = document.getElementById('adjuster-warning');
+    if (adjusterWarning) {
+        let isValid = true;
+
+        if (system === 'dual_angle') {
+            if (r1 < 0 || r1 > 90 || r3 < 0 || r3 > 90) {
+                console.log(`Adjuster validation failed: angle out of range`);
+                isValid = false;
+            }
+            if (r2 < 0 || r2 > 6.75) {
+                console.log(`Adjuster validation failed: pin2pap out of range`);
+                isValid = false;
+            }
+        } else if (system === 'vls' || system === '2ls') {
+            if (r1 < 0 || r2 < 0 || r3 < 0) {
+                console.log(`Adjuster validation failed: negative values`);
+                isValid = false;
+            }
+            if (r1 > 6.75 || r2 > 6.75 || r3 > 6.75) {
+                console.log(`Adjuster validation failed: values too large`);
+                isValid = false;
+            }
+        }
+
+        adjusterWarning.classList.toggle('hidden', isValid);
+    }
+
+    // Update Visualizer with Adjusted Result
+    if (visualizer && dom.papResultBox.classList.contains('hidden') === false) {
+        visualizer.updateLayout({
+            system: system,
+            p1: r1, p2: r2, p3: r3,
+            pap: papNew,
+            oldPap: papOld  // Pass old PAP for visualization
+        });
+    }
 }
 
 // -- CORE CONVERSION LOGIC --
@@ -556,6 +686,183 @@ function calculateConversion() {
     }
 
     renderOutputs([result.val1, result.val2, result.val3]);
+
+    // Validate layout geometry - for any system, check if values are realistic
+    const warningBox = document.getElementById('converter-warning');
+    if (warningBox) {
+        let isValid = true;
+        let inputInvalid = false;  // Track if input values are invalid
+        // Validate INPUT values based on source system
+        if (src === 'dual_angle') {
+            const drill = inputs['da_drill'];
+            const pin = inputs['da_pin'];
+            const val = inputs['da_val'];
+            if (drill < 0 || drill > 90 || val < 0 || val > 90) {
+                console.log(`Input validation failed: angle out of range (drill=${drill}, val=${val})`);
+                inputInvalid = true;
+            }
+            if (pin < 0 || pin > 6.75) {
+                console.log(`Input validation failed: pin2pap=${pin} out of range`);
+                inputInvalid = true;
+            }
+        } else if (src === 'vls') {
+            const pin = inputs['vls_pin'];
+            const psa = inputs['vls_psa'];
+            const buffer = inputs['vls_buffer'];
+            if (pin < 0 || psa < 0 || buffer < 0) {
+                console.log(`Input validation failed: negative VLS values`);
+                inputInvalid = true;
+            }
+            if (pin > 6.75 || psa > 6.75 || buffer > 6.75) {
+                console.log(`Input validation failed: VLS values too large`);
+                inputInvalid = true;
+            }
+        } else if (src === '2ls') {
+            const pin = inputs['2ls_pin'];
+            const psa = inputs['2ls_psa'];
+            const cog = inputs['2ls_cg'];
+            if (pin < 0 || psa < 0 || cog < 0) {
+                console.log(`Input validation failed: negative 2LS values`);
+                inputInvalid = true;
+            }
+            if (pin > 6.75 || psa > 6.75 || cog > 6.75) {
+                console.log(`Input validation failed: 2LS values too large`);
+                inputInvalid = true;
+            }
+        }
+
+        // Validate RESULT values based on target system
+        if (isValid && tgt === 'dual_angle') {
+            // Drilling angle and VAL angle should be 0-90
+            if (result.val1 < 0 || result.val1 > 90 || result.val3 < 0 || result.val3 > 90) {
+                console.log(`Validation failed: angle out of range (drill=${result.val1}, val=${result.val3})`);
+                isValid = false;
+            }
+            // Pin to PAP should be positive
+            if (result.val2 < 0 || result.val2 > 6.75) {
+                console.log(`Validation failed: pin2pap=${result.val2} out of range`);
+                isValid = false;
+            }
+        } else if (tgt === 'vls') {
+            // All distances should be non-negative and reasonable
+            if (result.val1 < 0 || result.val2 < 0 || result.val3 < 0) {
+                console.log(`Validation failed: negative VLS values (pin=${result.val1}, psa=${result.val2}, buffer=${result.val3})`);
+                isValid = false;
+            }
+            if (result.val1 > 6.75 || result.val2 > 6.75 || result.val3 > 6.75) {
+                console.log(`Validation failed: VLS values too large`);
+                isValid = false;
+            }
+        } else if (tgt === '2ls') {
+            // All distances should be non-negative
+            if (result.val1 < 0 || result.val2 < 0 || result.val3 < 0) {
+                console.log(`Validation failed: negative 2LS values (pin=${result.val1}, psa=${result.val2}, cog=${result.val3})`);
+                isValid = false;
+            }
+            if (result.val1 > 6.75 || result.val2 > 6.75 || result.val3 > 6.75) {
+                console.log(`Validation failed: 2LS values too large`);
+                isValid = false;
+            }
+        }
+
+        // Also validate triangle inequality using 2LS values
+        if (isValid) {
+            let pin2pap, pin2cog;
+            if (src === '2ls') {
+                pin2pap = inputs['2ls_pin'];
+                pin2cog = inputs['2ls_cg'];
+            } else if (src === 'dual_angle') {
+                pin2pap = inputs['da_pin'];
+                const converted = daTo2ls(inputs['da_drill'], inputs['da_pin'], inputs['da_val'], pap.over, pap.up);
+                pin2cog = converted.val3;
+            } else if (src === 'vls') {
+                pin2pap = inputs['vls_pin'];
+                const converted = vlsTo2ls(inputs['vls_pin'], inputs['vls_psa'], inputs['vls_buffer'], pap.over, pap.up);
+                pin2cog = converted.val3;
+            }
+
+            if (pin2pap !== undefined && pin2cog !== undefined) {
+                if (!validateLayoutGeometry(pin2pap, pin2cog, pap.over, pap.up)) {
+                    inputInvalid = true;
+                }
+            }
+        }
+
+        // Update warning visibility and text
+        const warningText = document.getElementById('converter-warning-text');
+        if (inputInvalid) {
+            warningBox.classList.remove('hidden');
+            if (warningText) {
+                warningText.setAttribute('data-i18n', 'warn_invalid_input');
+                warningText.textContent = t('warn_invalid_input');
+            }
+        } else if (!isValid) {
+            warningBox.classList.remove('hidden');
+            if (warningText) {
+                warningText.setAttribute('data-i18n', 'warn_unusual_output');
+                warningText.textContent = t('warn_unusual_output');
+            }
+        } else {
+            warningBox.classList.add('hidden');
+        }
+    }
+
+    // Update Visualizer
+    if (visualizer) {
+        visualizer.updateLayout({
+            system: tgt,
+            p1: result.val1,
+            p2: result.val2,
+            p3: result.val3,
+            pap: pap
+        });
+    }
+}
+
+/**
+ * Validates that layout values are geometrically possible.
+ * Checks:
+ * 1. All distances are within physical limits (0 to ~6.75 inches for ball surface)
+ * 2. Angles are within valid range (0-90 degrees)
+ * 3. Triangle inequality for pin-pap-grip triangle
+ * 4. NaN or undefined values
+ * @returns true if valid, false if suspicious
+ */
+function validateLayoutGeometry(pin2pap, pin2cog, papOver, papUp) {
+    const maxDistance = 6.75; // Half circumference = 13.5/2
+
+    // Check for NaN or obviously invalid values
+    if (isNaN(pin2pap) || isNaN(pin2cog)) {
+        console.log('Validation failed: NaN values');
+        return false;
+    }
+
+    // Check distance bounds
+    if (pin2pap < 0 || pin2pap > maxDistance) {
+        console.log(`Validation failed: pin2pap=${pin2pap} out of range [0, ${maxDistance}]`);
+        return false;
+    }
+    if (pin2cog < 0 || pin2cog > maxDistance) {
+        console.log(`Validation failed: pin2cog=${pin2cog} out of range [0, ${maxDistance}]`);
+        return false;
+    }
+
+    // Triangle inequality check
+    const papOverRad = radFromInch(papOver || 0);
+    const papUpRad = radFromInch(papUp || 0);
+    const cosDist = cos(papOverRad) * cos(papUpRad);
+    const pap2grip = inchFromRad(acos(Math.max(-1, Math.min(1, cosDist))));
+
+    const minPinCog = abs(pin2pap - pap2grip);
+    const maxPinCog = Math.min(pin2pap + pap2grip, maxDistance);
+
+    const tolerance = 0.5;
+    if (pin2cog < minPinCog - tolerance || pin2cog > maxPinCog + tolerance) {
+        console.log(`Validation failed: pin2cog=${pin2cog} not in valid range [${minPinCog.toFixed(2)}, ${maxPinCog.toFixed(2)}]`);
+        return false;
+    }
+
+    return true;
 }
 
 function renderOutputs(results) {

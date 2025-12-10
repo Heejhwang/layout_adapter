@@ -17,6 +17,10 @@
     padding: 0;
 }
 
+.hidden {
+    display: none !important;
+}
+
 body {
     font-family: var(--font-family);
     background-color: var(--bg-color);
@@ -80,6 +84,24 @@ body {
     background: var(--primary);
     color: white;
     box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+/* Compact Select (Header Settings) */
+.compact-select {
+    padding: 0.4rem 0.75rem;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    color: var(--text-main);
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    min-width: 90px;
+}
+
+.compact-select:focus {
+    outline: none;
+    border-color: var(--primary);
 }
 
 /* Cards & Glassmorphism */
@@ -298,6 +320,30 @@ input:focus {
     text-shadow: 0 2px 10px rgba(139, 92, 246, 0.5);
 }
 
+
+/* Embedded 3D Visualizer */
+.vis-embedded {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.vis-embedded canvas {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+
+/* Layout Warning */
+.layout-warning {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.4);
+    border-radius: 8px;
+    color: #fbbf24;
+    font-size: 0.9rem;
+}
 
 /* Responsive */
 @media (max-width: 768px) {
