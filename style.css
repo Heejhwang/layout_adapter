@@ -416,7 +416,9 @@ input:focus {
 
     .lang-btn {
         padding: 0.3rem 0.6rem;
-        font-size: 0.7rem;
+        font-size: 0.75rem;
+        min-width: auto;
+        width: auto;
     }
 
     .compact-select {
