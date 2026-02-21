@@ -2,29 +2,18 @@
  * Bowling Layout Adapter Logic
  */
 
-// -- Math & Physics Constants --
-const R = 13.5 / Math.PI; // Sphere Radius ~4.297
+if (!window.LayoutMath) {
+    throw new Error('layout-math.js must be loaded before app.js');
+}
 
-// -- Math Utils --
-const rad = (deg) => deg * (Math.PI / 180);
-const deg = (rad) => rad * (180 / Math.PI);
-const radFromInch = (inch) => (inch * Math.PI) / 13.5;
-const inchFromRad = (rad) => (rad * 13.5) / Math.PI;
-
-const sin = (x) => Math.sin(x);
-const cos = (x) => Math.cos(x);
-const acos = (x) => Math.acos(x);
-const asin = (x) => Math.asin(x);
-const atan2 = (y, x) => Math.atan2(y, x);
-const sqrt = (x) => Math.sqrt(x);
-const abs = (x) => Math.abs(x);
-const min = (a, b) => Math.min(a, b);
-
-// Expose Utils for Visualizer
-window.BowlingUtils = {
-    R, rad, deg, radFromInch, inchFromRad,
-    sin, cos, acos, asin, atan2, sqrt
-};
+const {
+    radFromInch, inchFromRad,
+    cos, acos, abs,
+    vlsToDa, vlsTo2ls,
+    daToVls, daTo2ls,
+    twoLsToDa, twoLsToVls,
+    calculatePapAdjustment
+} = window.LayoutMath;
 
 // -- Formatting Utils --
 const gcd = (a, b) => b ? gcd(b, a % b) : a;
@@ -109,6 +98,12 @@ const state = {
     }
 };
 
+const DIST_STEP = 1 / 16;
+const DIST_MAX = 6.75;
+const ANGLE_STEP = 5;
+const ANGLE_MAX = 90;
+
+let sliderBindings = [];
 
 
 // -- Visualizer --
@@ -193,6 +188,11 @@ function init() {
     // Initial PAP sync
     if (dom.convPapOver) state.converter.pap.over = parseFraction(dom.convPapOver.value) || 5;
     if (dom.convPapUp) state.converter.pap.up = parseFraction(dom.convPapUp.value) || 1;
+    if (dom.oldPapOver && !dom.oldPapOver.value.trim()) dom.oldPapOver.value = '5';
+    if (dom.oldPapUp && !dom.oldPapUp.value.trim()) dom.oldPapUp.value = '1';
+    if (dom.newPapOver && !dom.newPapOver.value.trim()) dom.newPapOver.value = '4 1/2';
+    if (dom.newPapUp && !dom.newPapUp.value.trim()) dom.newPapUp.value = '1';
+    calculateAdjuster();
 
     // Init Visualizer
     try {
@@ -314,11 +314,349 @@ const TWO_LS_PRESETS = [
     { label: "6", values: [3.5, 4, 6.5] }
 ];
 
+const DEFAULT_LAYOUTS = {
+    dual_angle: {
+        da_drill: 45,
+        da_pin: 4.5,
+        da_val: 30
+    },
+    vls: {
+        vls_pin: 4.5,
+        vls_psa: 5,
+        vls_buffer: 2
+    },
+    '2ls': {
+        '2ls_pin': 5.5,
+        '2ls_psa': 5,
+        '2ls_cg': 2
+    }
+};
+
+function getUnitConfig(unit) {
+    if (unit === 'angle') {
+        return { min: 0, max: ANGLE_MAX, step: ANGLE_STEP };
+    }
+    return { min: 0, max: DIST_MAX, step: DIST_STEP };
+}
+
+function snapToStep(value, unit) {
+    const { min, max, step } = getUnitConfig(unit);
+    const clamped = Math.max(min, Math.min(max, value));
+    const steps = Math.round((clamped - min) / step);
+    return min + (steps * step);
+}
+
+function formatInputValueForUnit(value, unit) {
+    if (!Number.isFinite(value)) return '';
+    if (unit === 'angle') {
+        return `${Math.round(value / ANGLE_STEP) * ANGLE_STEP}`;
+    }
+    return formatFraction(value).replace('"', '');
+}
+
+function formatSliderValue(value, unit) {
+    if (!Number.isFinite(value)) return '--';
+    if (unit === 'angle') return `${Math.round(value)}°`;
+    return formatFraction(value);
+}
+
+function formatPlaceholderExample(value, unit) {
+    return `e.g. ${formatInputValueForUnit(value, unit)}`;
+}
+
+function findSafeRange(unit, currentValue, isValidAt) {
+    const { min, max, step } = getUnitConfig(unit);
+    const stepsCount = Math.round((max - min) / step);
+    const valid = new Array(stepsCount + 1).fill(false);
+
+    for (let i = 0; i <= stepsCount; i++) {
+        const value = min + (i * step);
+        valid[i] = !!isValidAt(value);
+    }
+
+    const segments = [];
+    let segStart = -1;
+    for (let i = 0; i <= stepsCount; i++) {
+        if (valid[i] && segStart === -1) {
+            segStart = i;
+        } else if (!valid[i] && segStart !== -1) {
+            segments.push({ start: segStart, end: i - 1 });
+            segStart = -1;
+        }
+    }
+    if (segStart !== -1) {
+        segments.push({ start: segStart, end: stepsCount });
+    }
+
+    if (segments.length === 0) {
+        return { min, max, step };
+    }
+
+    const currentIndex = Math.max(0, Math.min(stepsCount, Math.round((currentValue - min) / step)));
+    let selected = segments.find(seg => currentIndex >= seg.start && currentIndex <= seg.end);
+
+    if (!selected) {
+        selected = segments.reduce((best, seg) => {
+            const bestLen = best.end - best.start;
+            const segLen = seg.end - seg.start;
+            return segLen > bestLen ? seg : best;
+        }, segments[0]);
+    }
+
+    return {
+        min: min + (selected.start * step),
+        max: min + (selected.end * step),
+        step
+    };
+}
+
+function createSliderBinding({
+    input,
+    unit,
+    getCurrentValue,
+    getRange
+}) {
+    const sliderWrap = document.createElement('div');
+    sliderWrap.className = 'slider-wrap';
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.className = 'value-slider';
+
+    const valueLabel = document.createElement('div');
+    valueLabel.className = 'slider-value';
+
+    sliderWrap.appendChild(slider);
+    sliderWrap.appendChild(valueLabel);
+    input.insertAdjacentElement('afterend', sliderWrap);
+
+    const binding = { input, slider, valueLabel, unit, getCurrentValue, getRange };
+    sliderBindings.push(binding);
+
+    slider.addEventListener('input', (e) => {
+        const value = parseFloat(e.target.value);
+        input.value = formatInputValueForUnit(value, unit);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        valueLabel.textContent = formatSliderValue(value, unit);
+    });
+
+    input.addEventListener('input', () => {
+        syncSliderBinding(binding);
+    });
+
+    syncSliderBinding(binding);
+}
+
+function syncSliderBinding(binding) {
+    const { unit, slider, valueLabel, getCurrentValue, getRange } = binding;
+    const cfg = getUnitConfig(unit);
+    const current = Number.isFinite(getCurrentValue()) ? getCurrentValue() : cfg.min;
+    const range = getRange ? getRange(current) : cfg;
+    const expandedMin = Math.min(range.min, current);
+    const expandedMax = Math.max(range.max, current);
+
+    slider.min = `${expandedMin}`;
+    slider.max = `${expandedMax}`;
+    slider.step = `${range.step}`;
+
+    const value = Math.max(expandedMin, Math.min(expandedMax, snapToStep(current, unit)));
+    slider.value = `${value}`;
+    valueLabel.textContent = formatSliderValue(value, unit);
+}
+
+function refreshSliders(scope) {
+    sliderBindings.forEach(binding => {
+        if (!scope || binding.input.dataset.sliderScope === scope) {
+            syncSliderBinding(binding);
+        }
+    });
+}
+
+function computeConverterResultForRange(src, tgt, inputs, pap) {
+    let result = { val1: 0, val2: 0, val3: 0 };
+
+    if (src === 'dual_angle') {
+        const drilling = inputs['da_drill'];
+        const pin2pap = inputs['da_pin'];
+        const val = inputs['da_val'];
+
+        if (tgt === 'dual_angle') result = { val1: drilling, val2: pin2pap, val3: val };
+        else if (tgt === 'vls') result = daToVls(drilling, pin2pap, val);
+        else if (tgt === '2ls') result = daTo2ls(drilling, pin2pap, val, pap.over, pap.up);
+    } else if (src === 'vls') {
+        const pin2pap = inputs['vls_pin'];
+        const psa2pap = inputs['vls_psa'];
+        const buffer = inputs['vls_buffer'];
+
+        if (tgt === 'vls') result = { val1: pin2pap, val2: psa2pap, val3: buffer };
+        else if (tgt === 'dual_angle') result = vlsToDa(pin2pap, psa2pap, buffer);
+        else if (tgt === '2ls') result = vlsTo2ls(pin2pap, psa2pap, buffer, pap.over, pap.up);
+    } else if (src === '2ls') {
+        const pin2pap = inputs['2ls_pin'];
+        const psa2pap = inputs['2ls_psa'];
+        const pin2cog = inputs['2ls_cg'];
+
+        if (tgt === '2ls') result = { val1: pin2pap, val2: psa2pap, val3: pin2cog };
+        else if (tgt === 'dual_angle') result = twoLsToDa(pin2pap, psa2pap, pin2cog, pap.over, pap.up);
+        else if (tgt === 'vls') result = twoLsToVls(pin2pap, psa2pap, pin2cog, pap.over, pap.up);
+    }
+
+    return result;
+}
+
+function isConverterWarningFree(src, tgt, inputs, pap, result) {
+    if (!Number.isFinite(result.val1) || !Number.isFinite(result.val2) || !Number.isFinite(result.val3)) {
+        return false;
+    }
+
+    let isValid = true;
+    let inputInvalid = false;
+
+    if (src === 'dual_angle') {
+        const drill = inputs['da_drill'];
+        const pin = inputs['da_pin'];
+        const val = inputs['da_val'];
+        if (drill < 0 || drill > 90 || val < 0 || val > 90) inputInvalid = true;
+        if (pin < 0 || pin > 6.75) inputInvalid = true;
+        if (!inputInvalid) {
+            const converted = daTo2ls(drill, pin, val, pap.over, pap.up);
+            if (!validateLayoutGeometry(pin, converted.val3, pap.over, pap.up)) inputInvalid = true;
+        }
+    } else if (src === 'vls') {
+        const pin = inputs['vls_pin'];
+        const psa = inputs['vls_psa'];
+        const buffer = inputs['vls_buffer'];
+        if (pin < 0 || psa < 0 || buffer < 0) inputInvalid = true;
+        if (pin > 6.75 || psa > 6.75 || buffer > 6.75) inputInvalid = true;
+        if (buffer > pin) inputInvalid = true;
+        if (!inputInvalid) {
+            const converted = vlsTo2ls(pin, psa, buffer, pap.over, pap.up);
+            if (!validateLayoutGeometry(pin, converted.val3, pap.over, pap.up)) inputInvalid = true;
+        }
+    } else if (src === '2ls') {
+        const pin = inputs['2ls_pin'];
+        const psa = inputs['2ls_psa'];
+        const cog = inputs['2ls_cg'];
+        if (pin < 0 || psa < 0 || cog < 0) inputInvalid = true;
+        if (pin > 6.75 || psa > 6.75 || cog > 6.75) inputInvalid = true;
+        if (!inputInvalid && !validateLayoutGeometry(pin, cog, pap.over, pap.up)) inputInvalid = true;
+    }
+
+    if (isValid && tgt === 'dual_angle') {
+        if (result.val1 < 0 || result.val1 > 90 || result.val3 < 0 || result.val3 > 90) isValid = false;
+        if (result.val2 < 0 || result.val2 > 6.75) isValid = false;
+    } else if (tgt === 'vls') {
+        if (result.val1 < 0 || result.val2 < 0 || result.val3 < 0) isValid = false;
+        if (result.val1 > 6.75 || result.val2 > 6.75 || result.val3 > 6.75) isValid = false;
+        if (result.val3 > result.val1) isValid = false;
+    } else if (tgt === '2ls') {
+        if (result.val1 < 0 || result.val2 < 0 || result.val3 < 0) isValid = false;
+        if (result.val1 > 6.75 || result.val2 > 6.75 || result.val3 > 6.75) isValid = false;
+    }
+
+    if (isValid) {
+        let pin2pap;
+        let pin2cog;
+        if (src === '2ls') {
+            pin2pap = inputs['2ls_pin'];
+            pin2cog = inputs['2ls_cg'];
+        } else if (src === 'dual_angle') {
+            pin2pap = inputs['da_pin'];
+            pin2cog = daTo2ls(inputs['da_drill'], inputs['da_pin'], inputs['da_val'], pap.over, pap.up).val3;
+        } else if (src === 'vls') {
+            pin2pap = inputs['vls_pin'];
+            pin2cog = vlsTo2ls(inputs['vls_pin'], inputs['vls_psa'], inputs['vls_buffer'], pap.over, pap.up).val3;
+        }
+
+        if (pin2pap !== undefined && pin2cog !== undefined && !validateLayoutGeometry(pin2pap, pin2cog, pap.over, pap.up)) {
+            inputInvalid = true;
+        }
+    }
+
+    return !inputInvalid && isValid;
+}
+
+function isAdjusterInputValid(system, inputs, papOld) {
+    const keys = Object.keys(inputs);
+    if (keys.length < 3 || keys.some(k => isNaN(inputs[k]))) return false;
+
+    if (system === 'dual_angle') {
+        const drill = inputs['da_drill'];
+        const pin = inputs['da_pin'];
+        const val = inputs['da_val'];
+        if (drill < 0 || drill > 90 || val < 0 || val > 90) return false;
+        if (pin < 0 || pin > 6.75) return false;
+
+        const converted = daTo2ls(drill, pin, val, papOld.over, papOld.up);
+        return validateLayoutGeometry(pin, converted.val3, papOld.over, papOld.up);
+    }
+
+    if (system === 'vls') {
+        const pin = inputs['vls_pin'];
+        const psa = inputs['vls_psa'];
+        const buffer = inputs['vls_buffer'];
+        if (pin < 0 || psa < 0 || buffer < 0) return false;
+        if (pin > 6.75 || psa > 6.75 || buffer > 6.75) return false;
+        if (buffer > pin) return false;
+
+        const converted = vlsTo2ls(pin, psa, buffer, papOld.over, papOld.up);
+        return validateLayoutGeometry(pin, converted.val3, papOld.over, papOld.up);
+    }
+
+    if (system === '2ls') {
+        const pin = inputs['2ls_pin'];
+        const psa = inputs['2ls_psa'];
+        const cog = inputs['2ls_cg'];
+        if (pin < 0 || psa < 0 || cog < 0) return false;
+        if (pin > 6.75 || psa > 6.75 || cog > 6.75) return false;
+        return validateLayoutGeometry(pin, cog, papOld.over, papOld.up);
+    }
+
+    return false;
+}
+
+function getConverterSafeRange({ fieldId, unit, current }) {
+    const base = getUnitConfig(unit);
+    if (!fieldId) return base;
+    const src = state.converter.sourceSystem;
+    const tgt = state.converter.targetSystem;
+    const keys = Object.keys(state.converter.inputs);
+    if (keys.length < 3 || keys.some(k => isNaN(state.converter.inputs[k]))) return base;
+
+    const safeRange = findSafeRange(unit, current, (value) => {
+        const inputs = { ...state.converter.inputs, [fieldId]: value };
+        const pap = { ...state.converter.pap };
+        const result = computeConverterResultForRange(src, tgt, inputs, pap);
+        return isConverterWarningFree(src, tgt, inputs, pap, result);
+    });
+
+    return safeRange;
+}
+
+function getAdjusterSafeRange({ fieldId, unit, current }) {
+    const base = getUnitConfig(unit);
+    if (!fieldId) return base;
+    const papOld = {
+        over: parseFraction(dom.oldPapOver ? dom.oldPapOver.value : 0),
+        up: parseFraction(dom.oldPapUp ? dom.oldPapUp.value : 0)
+    };
+    if (isNaN(papOld.over) || isNaN(papOld.up)) return base;
+
+    const safeRange = findSafeRange(unit, current, (value) => {
+        const inputs = { ...state.adjuster.inputs, [fieldId]: value };
+        return isAdjusterInputValid(state.adjuster.system, inputs, papOld);
+    });
+
+    return safeRange;
+}
+
 function renderInputs() {
     const systemKey = state.converter.sourceSystem;
     const fields = SYSTEMS[systemKey].fields;
+    const defaults = DEFAULT_LAYOUTS[systemKey] || {};
 
     dom.sourceInputs.innerHTML = '';
+    sliderBindings = sliderBindings.filter(binding => binding.input.dataset.sliderScope !== 'converter-input');
     state.converter.inputs = {};
 
     // Inject 2LS Presets if applicable
@@ -374,17 +712,15 @@ function renderInputs() {
         const input = document.createElement('input');
         input.type = 'text';
         input.inputMode = field.unit === 'angle' ? 'numeric' : 'text';
-
-        if (field.unit === 'angle') {
-            input.placeholder = "e.g. 45°";
-        } else {
-            input.placeholder = 'e.g. 4 1/2"';
-        }
+        input.dataset.sliderScope = 'converter-input';
 
         input.id = `input-${field.id}`;
 
-        // Initialize state
-        state.converter.inputs[field.id] = 0;
+        // Initialize with sample layout so visualization starts in valid state.
+        const defaultValue = defaults[field.id] ?? 0;
+        state.converter.inputs[field.id] = defaultValue;
+        input.placeholder = formatPlaceholderExample(defaultValue, field.unit);
+        input.value = '';
 
         input.addEventListener('input', (e) => {
             state.converter.inputs[field.id] = parseFraction(e.target.value);
@@ -396,6 +732,12 @@ function renderInputs() {
 
         wrapper.appendChild(label);
         wrapper.appendChild(input);
+        createSliderBinding({
+            input,
+            unit: field.unit,
+            getCurrentValue: () => state.converter.inputs[field.id],
+            getRange: (current) => getConverterSafeRange({ fieldId: field.id, unit: field.unit, current })
+        });
         dom.sourceInputs.appendChild(wrapper);
     });
 
@@ -408,8 +750,10 @@ function renderInputs() {
 function renderAdjusterInputs() {
     const systemKey = state.adjuster.system;
     const fields = SYSTEMS[systemKey].fields;
+    const defaults = DEFAULT_LAYOUTS[systemKey] || {};
 
     dom.adjusterInputs.innerHTML = '';
+    sliderBindings = sliderBindings.filter(binding => binding.input.dataset.sliderScope !== 'adjuster-input');
     state.adjuster.inputs = {};
 
     // Inject 2LS Presets for Adjuster if applicable
@@ -465,12 +809,7 @@ function renderAdjusterInputs() {
         const input = document.createElement('input');
         input.type = 'text';
         input.id = `adj-input-${field.id}`;
-
-        if (field.unit === 'angle') {
-            input.placeholder = "e.g. 45°";
-        } else {
-            input.placeholder = 'e.g. 4 1/2"';
-        }
+        input.dataset.sliderScope = 'adjuster-input';
 
         input.addEventListener('input', (e) => {
             state.adjuster.inputs[field.id] = parseFraction(e.target.value);
@@ -481,8 +820,19 @@ function renderAdjusterInputs() {
             calculateAdjuster(); // Auto calc
         });
 
+        const defaultValue = defaults[field.id] ?? 0;
+        state.adjuster.inputs[field.id] = defaultValue;
+        input.placeholder = formatPlaceholderExample(defaultValue, field.unit);
+        input.value = '';
+
         wrapper.appendChild(label);
         wrapper.appendChild(input);
+        createSliderBinding({
+            input,
+            unit: field.unit,
+            getCurrentValue: () => state.adjuster.inputs[field.id],
+            getRange: (current) => getAdjusterSafeRange({ fieldId: field.id, unit: field.unit, current })
+        });
         dom.adjusterInputs.appendChild(wrapper);
     });
 }
@@ -559,12 +909,13 @@ function calculateAdjuster() {
 
     // 2. Calculate New Layout in terms of Dual Angle
     const resultDA = calculatePapAdjustment(papOld, daOld, papNew);
+    const drillSigned = Number.isFinite(resultDA.drillSigned) ? resultDA.drillSigned : resultDA.drill;
 
     // 3. Convert Result back to Original System (using New PAP)
     let finalResult = { v1: 0, v2: 0, v3: 0 };
 
     if (system === 'dual_angle') {
-        finalResult = { v1: resultDA.drill, v2: resultDA.pin, v3: resultDA.val };
+        finalResult = { v1: drillSigned, v2: resultDA.pin, v3: resultDA.val };
     } else if (system === 'vls') {
         const res = daToVls(resultDA.drill, resultDA.pin, resultDA.val);
         finalResult = { v1: res.val1, v2: res.val2, v3: res.val3 };
@@ -626,9 +977,12 @@ function calculateAdjuster() {
             system: system,
             p1: r1, p2: r2, p3: r3,
             pap: papNew,
-            oldPap: papOld  // Pass old PAP for visualization
+            oldPap: papOld,  // Pass old PAP for visualization
+            drillSigned: drillSigned
         });
     }
+
+    refreshSliders('adjuster-input');
 }
 
 // -- CORE CONVERSION LOGIC --
@@ -851,6 +1205,8 @@ function calculateConversion() {
             pap: pap
         });
     }
+
+    refreshSliders('converter-input');
 }
 
 /**
@@ -932,193 +1288,6 @@ function renderOutputs(results) {
         wrapper.appendChild(display);
         dom.targetOutputs.appendChild(wrapper);
     });
-}
-
-// 1. VLS -> Dual Angle
-function vlsToDa(pin_to_pap, psa_to_pap, pin_buffer) {
-    const alpha_pin = radFromInch(pin_to_pap);
-    const alpha_psa = radFromInch(psa_to_pap);
-
-    let cos_val = cos(alpha_psa) / sin(alpha_pin);
-    if (cos_val > 1) cos_val = 1; if (cos_val < -1) cos_val = -1;
-    const da_drill = deg(acos(cos_val));
-
-    const alpha_buf = radFromInch(pin_buffer);
-    let sin_val = sin(alpha_buf) / sin(alpha_pin);
-    if (sin_val > 1) sin_val = 1; if (sin_val < -1) sin_val = -1;
-    const da_val = deg(asin(sin_val));
-
-    return { val1: da_drill, val2: pin_to_pap, val3: da_val };
-}
-
-// 1. VLS -> 2LS
-function vlsTo2ls(pin_to_pap, psa_to_pap, pin_buffer, pap_right, pap_up) {
-    const alpha_pin = radFromInch(pin_to_pap);
-    const alpha_buf = radFromInch(pin_buffer);
-
-    let sin_val = sin(alpha_buf) / sin(alpha_pin);
-    if (sin_val > 1) sin_val = 1; if (sin_val < -1) sin_val = -1;
-    const val_angle_deg = deg(asin(sin_val));
-
-    const lambda = radFromInch(pap_right);
-    const phi = radFromInch(pap_up);
-    const pap_cog_angle = acos(cos(lambda) * cos(phi));
-
-    const term1 = cos(alpha_pin) * cos(pap_cog_angle);
-    const term2 = sin(alpha_pin) * sin(pap_cog_angle) * sin(rad(val_angle_deg));
-
-    let cos_pincog = term1 + term2;
-    if (cos_pincog > 1) cos_pincog = 1; if (cos_pincog < -1) cos_pincog = -1;
-
-    const pin_to_cog = R * acos(cos_pincog);
-
-    return { val1: pin_to_pap, val2: psa_to_pap, val3: pin_to_cog };
-}
-
-// 2. Dual Angle -> VLS
-function daToVls(drilling_angle, pin_to_pap, val_angle) {
-    const alpha_pin = radFromInch(pin_to_pap);
-    const val_rad = rad(val_angle);
-    const drill_rad = rad(drilling_angle);
-
-    let cos_psa = sin(alpha_pin) * cos(drill_rad);
-    if (cos_psa > 1) cos_psa = 1; if (cos_psa < -1) cos_psa = -1;
-    const psa_to_pap = R * acos(cos_psa);
-
-    let sin_buf = sin(alpha_pin) * sin(val_rad);
-    if (sin_buf > 1) sin_buf = 1; if (sin_buf < -1) sin_buf = -1;
-    const pin_buffer = R * asin(sin_buf);
-
-    return { val1: pin_to_pap, val2: psa_to_pap, val3: pin_buffer };
-}
-
-// 2. Dual Angle -> 2LS
-function daTo2ls(drilling_angle, pin_to_pap, val_angle, pap_right, pap_up) {
-    const alpha_pin = radFromInch(pin_to_pap);
-    const drill_rad = rad(drilling_angle);
-    let cos_psa = sin(alpha_pin) * cos(drill_rad);
-    if (cos_psa > 1) cos_psa = 1; if (cos_psa < -1) cos_psa = -1;
-    const psa_to_pap = R * acos(cos_psa);
-
-    const lambda = radFromInch(pap_right);
-    const phi = radFromInch(pap_up);
-    const pap_cog_angle = acos(cos(lambda) * cos(phi));
-    const val_rad = rad(val_angle);
-
-    const term1 = cos(alpha_pin) * cos(pap_cog_angle);
-    const term2 = sin(alpha_pin) * sin(pap_cog_angle) * sin(val_rad);
-
-    let cos_pincog = term1 + term2;
-    if (cos_pincog > 1) cos_pincog = 1; if (cos_pincog < -1) cos_pincog = -1;
-    const pin_to_cog = R * acos(cos_pincog);
-
-    return { val1: pin_to_pap, val2: psa_to_pap, val3: pin_to_cog };
-}
-
-// 3. 2LS -> Dual Angle
-function twoLsToDa(pin_to_pap, psa_to_pap, pin_to_cog, pap_right, pap_up) {
-    const alpha_pin = radFromInch(pin_to_pap);
-    const alpha_psa = radFromInch(psa_to_pap);
-
-    let cos_da = cos(alpha_psa) / sin(alpha_pin);
-    if (cos_da > 1) cos_da = 1; if (cos_da < -1) cos_da = -1;
-    const drilling_angle = deg(acos(cos_da));
-
-    const alpha_pcog = radFromInch(pin_to_cog);
-    const lambda = radFromInch(pap_right);
-    const phi = radFromInch(pap_up);
-
-    const numer = cos(alpha_pcog) - cos(alpha_pin) * cos(lambda) * cos(phi);
-    const term_cl_cp = cos(lambda) * cos(phi);
-    const denom = sin(alpha_pin) * sqrt(1 - (term_cl_cp * term_cl_cp));
-
-    let sin_val = 0;
-    if (denom !== 0) {
-        sin_val = numer / denom;
-    }
-    if (sin_val > 1) sin_val = 1; if (sin_val < -1) sin_val = -1;
-
-    const val_angle = deg(asin(sin_val));
-
-    return { val1: drilling_angle, val2: pin_to_pap, val3: val_angle };
-}
-
-// 3. 2LS -> VLS
-function twoLsToVls(pin_to_pap, psa_to_pap, pin_to_cog, pap_right, pap_up) {
-    const { val3: val_angle } = twoLsToDa(pin_to_pap, psa_to_pap, pin_to_cog, pap_right, pap_up);
-
-    const alpha_pin = radFromInch(pin_to_pap);
-    let sin_buf = sin(alpha_pin) * sin(rad(val_angle));
-    if (sin_buf > 1) sin_buf = 1; if (sin_buf < -1) sin_buf = -1;
-    const pin_buffer = R * asin(sin_buf);
-
-    return { val1: pin_to_pap, val2: psa_to_pap, val3: pin_buffer };
-}
-
-function calculatePapAdjustment(papOld, daOld, papNew) {
-    const lat_o = radFromInch(papOld.up);
-    const lon_o = radFromInch(papOld.over);
-
-    const sigmaA = radFromInch(daOld.pin);
-    const theta = -rad(daOld.val);
-
-    let sin_lat_pin = sin(lat_o) * cos(sigmaA) + cos(lat_o) * sin(sigmaA) * cos(theta);
-    if (sin_lat_pin > 1) sin_lat_pin = 1; if (sin_lat_pin < -1) sin_lat_pin = -1;
-    const lat_pin = asin(sin_lat_pin);
-
-    const x_pin = cos(sigmaA) - sin(lat_o) * sin(lat_pin);
-    const y_pin = sin(theta) * sin(sigmaA) * cos(lat_o);
-    const lon_pin = lon_o + atan2(y_pin, x_pin);
-
-    const lat_n = radFromInch(papNew.up);
-    const lon_n = radFromInch(papNew.over);
-
-    const term1 = sin((lat_pin - lat_n) / 2) ** 2;
-    const term2 = cos(lat_n) * cos(lat_pin) * (sin((lon_pin - lon_n) / 2) ** 2);
-    const sigma = 2 * asin(sqrt(term1 + term2));
-
-    const pin_to_pap_new = inchFromRad(sigma);
-
-    const x_bear = cos(lat_n) * sin(lat_pin) - sin(lat_n) * cos(lat_pin) * cos(lon_pin - lon_n);
-    const y_bear = sin(lon_pin - lon_n) * cos(lat_pin);
-    const bearing = atan2(y_bear, x_bear);
-
-    const val_new_deg = deg(min(abs(bearing), abs(Math.PI - abs(bearing))));
-
-    const x_bold = cos(lat_pin) * sin(lat_o) - sin(lat_pin) * cos(lat_o) * cos(lon_o - lon_pin);
-    const y_bold = sin(lon_o - lon_pin) * cos(lat_o);
-    const b_old = atan2(y_bold, x_bold);
-
-    const b_psa = b_old + rad(daOld.drill);
-
-    const DIST_PIN_PSA = 6.75;
-    const s_psa = radFromInch(DIST_PIN_PSA);
-
-    let sin_lat_psa = sin(lat_pin) * cos(s_psa) + cos(lat_pin) * sin(s_psa) * cos(b_psa);
-    if (sin_lat_psa > 1) sin_lat_psa = 1; if (sin_lat_psa < -1) sin_lat_psa = -1;
-    const lat_psa = asin(sin_lat_psa);
-
-    const x_lpsa = cos(s_psa) - sin(lat_pin) * sin(lat_psa);
-    const y_lpsa = sin(b_psa) * sin(s_psa) * cos(lat_pin);
-    const lon_psa = lon_pin + atan2(y_lpsa, x_lpsa);
-
-    const x_bnew = cos(lat_pin) * sin(lat_n) - sin(lat_pin) * cos(lat_n) * cos(lon_n - lon_pin);
-    const y_bnew = sin(lon_n - lon_pin) * cos(lat_n);
-    const b_new = atan2(y_bnew, x_bnew);
-
-    const x_bpp = cos(lat_pin) * sin(lat_psa) - sin(lat_pin) * cos(lat_psa) * cos(lon_psa - lon_pin);
-    const y_bpp = sin(lon_psa - lon_pin) * cos(lat_psa);
-    const b_pin_psa = atan2(y_bpp, x_bpp);
-
-    const diff = b_pin_psa - b_new + Math.PI;
-    const modDiff = ((diff % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
-    const drilling_new_deg = deg(abs(modDiff - Math.PI));
-
-    return {
-        drill: drilling_new_deg,
-        pin: pin_to_pap_new,
-        val: val_new_deg
-    };
 }
 
 document.addEventListener('DOMContentLoaded', init);

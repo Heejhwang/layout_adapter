@@ -19,6 +19,7 @@ class BowlingVisualizer {
 
         // Utils alias
         this.u = window.BowlingUtils || {};
+        this.math = window.LayoutMath || {};
 
         this.init();
     }
@@ -257,9 +258,15 @@ class BowlingVisualizer {
             this.u = window.BowlingUtils; // retry
             if (!this.u) return;
         }
+        if (!this.math || !this.math.vlsToDa) {
+            this.math = window.LayoutMath || {};
+        }
 
-        const { system, p1, p2, p3, pap, oldPap } = data;
-        const { R, radFromInch, sin, cos, asin, acos, atan2, sqrt } = this.u;
+        const { system, p1, p2, p3, pap, oldPap, drillSigned } = data;
+        const { R, radFromInch, sin, cos } = this.u;
+        if (system !== 'dual_angle' && (!this.math.vlsToDa || !this.math.twoLsToDa)) {
+            return;
+        }
 
         // Handle Old PAP (for PAP Adjuster mode)
         if (oldPap && oldPap.over !== undefined && oldPap.up !== undefined) {
@@ -313,73 +320,17 @@ class BowlingVisualizer {
             daPin = p2;   // inches
             daVal = p3;   // degrees
         } else if (system === 'vls') {
-            // VLS to DA
-            // Re-implement or reuse app logic? 
-            // Reuse app logic NOT directly available. Implementing math here.
-            // ...Actually, simpler to ask App.js to pass DA?
-            // No, let's just duplicate the small math.
-
-            // VLS: Pin, PSA, Buffer
-            const pin2pap = p1;
-            const psa2pap = p2;
-            const buffer = p3;
-
-            const alpha_pin = radFromInch(pin2pap);
-            const alpha_psa = radFromInch(psa2pap);
-            let cos_val = cos(alpha_psa) / sin(alpha_pin);
-            if (cos_val > 1) cos_val = 1; if (cos_val < -1) cos_val = -1;
-            daDrill = (acos(cos_val) * 180 / Math.PI);
-
-            const alpha_buf = radFromInch(buffer);
-            let sin_val = sin(alpha_buf) / sin(alpha_pin);
-            if (sin_val > 1) sin_val = 1; if (sin_val < -1) sin_val = -1;
-            daVal = (asin(sin_val) * 180 / Math.PI);
-
-            daPin = pin2pap;
+            const converted = this.math.vlsToDa(p1, p2, p3);
+            daDrill = converted.val1;
+            daPin = converted.val2;
+            daVal = converted.val3;
         } else if (system === '2ls') {
-            // 2LS to DA
-            // Needs PAP!
-            // 2LS uses PAP to convert.
-            // Pin, PSA, CG
-            const pin2pap = p1;
-            const psa2pap = p2;
-            const cg = p3;
-
-            // ... This math is complex to duplicate. 
-            // Ideally App.js should pass "Normalized Dual Angle" or similar.
-            // But we can approximate or use simplified model if needed.
-            // Actually, wait. Visualizer has PAP pos.
-            // 2LS conversion requires solving the triangle including Grip Center (PAP).
-            // Let's trust that the user sees "Result" in output box.
-            // If output box shows DA, we can grep it? No.
-            // Let's implement full 2LS math? It's in app.js. 
-            // For now, let's treat 2LS as DA if possible? No.
-
-            // Fallback: If 2LS, we might receive normalized data if we modify app.js
-            // But let's just copy the function `twoLsToDa` logic here quickly.
-            // It's robust.
-
-            const alpha_pin = radFromInch(pin2pap);
-            const alpha_psa = radFromInch(psa2pap);
-            let cos_da = cos(alpha_psa) / sin(alpha_pin);
-            if (cos_da > 1) cos_da = 1; if (cos_da < -1) cos_da = -1;
-            daDrill = (acos(cos_da) * 180 / Math.PI);
-
-            // VAL angle calculation for 2LS is complex
-            // Copying `twoLsToDa` VAL part
-            const minPinCog = cg; // p3 is pin to cog? Yes
-            const alpha_pcog = radFromInch(minPinCog);
-            const lambda = radFromInch(pap.over);
-            const phi = radFromInch(pap.up);
-            const numer = cos(alpha_pcog) - cos(alpha_pin) * cos(lambda) * cos(phi);
-            const term_cl_cp = cos(lambda) * cos(phi);
-            const denom = sin(alpha_pin) * sqrt(1 - (term_cl_cp * term_cl_cp));
-            let sin_v = 0;
-            if (denom !== 0) sin_v = numer / denom;
-            if (sin_v > 1) sin_v = 1; if (sin_v < -1) sin_v = -1;
-            daVal = (asin(sin_v) * 180 / Math.PI);
-
-            daPin = pin2pap;
+            const converted = this.math.twoLsToDa(p1, p2, p3, pap.over, pap.up);
+            daDrill = converted.val1;
+            daPin = converted.val2;
+            daVal = converted.val3;
+        } else {
+            return;
         }
 
         // Now we have daDrill, daPin, daVal
@@ -463,7 +414,8 @@ class BowlingVisualizer {
 
         // Drill angle rotates COUNTER-CLOCKWISE from PAP direction when viewed from outside
         // This places PSA on the opposite side from PAP
-        const drillRad = -daDrill * (Math.PI / 180); // Negative for correct direction
+        const drillValue = Number.isFinite(drillSigned) ? drillSigned : daDrill;
+        const drillRad = -drillValue * (Math.PI / 180); // Negative for correct direction
         const psaDir = PapDirAtPin.clone().applyAxisAngle(PinPosNorm, drillRad);
 
         // PSA Distance from Pin: 6.75 inches (constant for asymmetric cores)

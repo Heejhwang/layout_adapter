@@ -260,6 +260,25 @@ input:focus {
     gap: 1rem;
 }
 
+.slider-wrap {
+    margin-top: 0.45rem;
+}
+
+.value-slider {
+    width: 100%;
+    accent-color: var(--primary);
+    padding: 0;
+    background: transparent;
+    border: none;
+}
+
+.slider-value {
+    margin-top: 0.2rem;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-align: right;
+}
+
 .read-only-field {
     padding: 0.75rem 1rem;
     background: rgba(139, 92, 246, 0.1);
