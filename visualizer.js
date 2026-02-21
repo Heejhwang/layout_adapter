@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 3D Bowling Ball Visualizer
  * Uses Three.js to render the ball, layout points, and holes.
  */
@@ -27,7 +27,7 @@ class BowlingVisualizer {
     init() {
         // 1. Scene
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x1a1a2e);
+        this.scene.background = null;
 
         // 2. Camera
         this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
@@ -64,7 +64,7 @@ class BowlingVisualizer {
         const RADIUS = 4.297;
         const geo = new THREE.SphereGeometry(RADIUS, 64, 64);
         const mat = new THREE.MeshPhysicalMaterial({
-            color: 0x3388ff, // Brighter Blue
+            color: 0x1e293b, // Dark Matte Slate (modern)
             roughness: 0.1,
             metalness: 0.2,
             clearcoat: 1.0,
@@ -79,14 +79,14 @@ class BowlingVisualizer {
         // Markers Init (Flat Circles) - Larger for visibility
         const markerGeo = new THREE.CircleGeometry(0.3, 32);
 
-        const pinMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, side: THREE.DoubleSide });
+        const pinMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, side: THREE.DoubleSide }); // Cyan
         this.markerPin = new THREE.Mesh(markerGeo, pinMat);
         // Initial position - front of ball (visible from camera)
         this.markerPin.position.set(1, 2, 3.7);
         this.markerPin.lookAt(0, 0, 0);
         this.group.add(this.markerPin);
 
-        const psaMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+        const psaMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }); // White
         this.markerPsa = new THREE.Mesh(markerGeo.clone(), psaMat);
         this.markerPsa.position.set(-1.5, 3, 2.5);
         this.markerPsa.lookAt(0, 0, 0);
@@ -95,14 +95,14 @@ class BowlingVisualizer {
         // PAP markers - smaller size
         const smallMarkerGeo = new THREE.CircleGeometry(0.15, 32);
 
-        const papMat = new THREE.MeshBasicMaterial({ color: 0xff00ff, side: THREE.DoubleSide }); // Magenta for New PAP
+        const papMat = new THREE.MeshBasicMaterial({ color: 0x10b981, side: THREE.DoubleSide }); // Neon Green for PAP
         this.markerPap = new THREE.Mesh(smallMarkerGeo, papMat);
         this.markerPap.position.set(2, 0.5, 3.8);
         this.markerPap.lookAt(0, 0, 0);
         this.group.add(this.markerPap);
 
         // Old PAP marker (for PAP Adjuster mode) - Cyan color
-        const oldPapMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, side: THREE.DoubleSide });
+        const oldPapMat = new THREE.MeshBasicMaterial({ color: 0x64748b, side: THREE.DoubleSide }); // Slate Gray for Old PAP
         this.markerOldPap = new THREE.Mesh(smallMarkerGeo.clone(), oldPapMat);
         this.markerOldPap.position.set(2.5, 0.3, 3.5);
         this.markerOldPap.lookAt(0, 0, 0);
@@ -215,13 +215,13 @@ class BowlingVisualizer {
         if (overlay) {
             let legendHtml = `
                <div style="position: absolute; top: 10px; left: 10px; color: white; font-size: 0.8rem; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 4px;">
-                   <div style="display:flex; align-items:center; gap: 5px;"><span style="color:#ffaa00">●</span> Pin</div>
+                   <div style="display:flex; align-items:center; gap: 5px;"><span style="color:#06b6d4">●</span> Pin</div>
                    <div style="display:flex; align-items:center; gap: 5px;"><span style="color:#ffffff">●</span> PSA</div>
-                   <div style="display:flex; align-items:center; gap: 5px;"><span style="color:#ff00ff">●</span> PAP</div>`;
+                   <div style="display:flex; align-items:center; gap: 5px;"><span style="color:#10b981">●</span> PAP</div>`;
 
             if (this.isAdjusterMode) {
                 legendHtml += `
-                   <div style="display:flex; align-items:center; gap: 5px;"><span style="color:#00ffff">●</span> Old PAP</div>`;
+                   <div style="display:flex; align-items:center; gap: 5px;"><span style="color:#64748b">●</span> Old PAP</div>`;
             }
 
             legendHtml += `</div>`;
@@ -462,10 +462,14 @@ class BowlingVisualizer {
         // VAL Line (Arc through PAP, vertical-ish?)
         // Or just connect Pin-PAP, Pin-PSA
 
-        addLine(this.markerPin.position, this.markerPap.position, 0xffff00); // Pin to PAP
-        addLine(this.markerPin.position, this.markerPsa.position, 0xffffff); // Pin to PSA
+        addLine(this.markerPin.position, this.markerPap.position, 0x06b6d4); // Cyan: Pin to PAP
+        addLine(this.markerPin.position, this.markerPsa.position, 0xffffff); // White: Pin to PSA
 
         // Connect PAP to PSA? (Gradient Line?)
         // addLine(this.markerPap.position, this.markerPsa.position, 0x555555);
     }
 }
+
+
+
+
