@@ -79,7 +79,7 @@ class BowlingVisualizer {
         // Markers Init (Flat Circles) - Larger for visibility
         const markerGeo = new THREE.CircleGeometry(0.3, 32);
 
-        const pinMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, side: THREE.DoubleSide }); // Cyan
+        const pinMat = new THREE.MeshBasicMaterial({ color: 0xfacc15, side: THREE.DoubleSide }); // Cyan
         this.markerPin = new THREE.Mesh(markerGeo, pinMat);
         // Initial position - front of ball (visible from camera)
         this.markerPin.position.set(1, 2, 3.7);
@@ -215,7 +215,7 @@ class BowlingVisualizer {
         if (overlay) {
             let legendHtml = `
                <div style="position: absolute; top: 10px; left: 10px; color: white; font-size: 0.8rem; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 4px;">
-                   <div style="display:flex; align-items:center; gap: 5px;"><span style="color:#06b6d4">●</span> Pin</div>
+                   <div style="display:flex; align-items:center; gap: 5px;"><span style="color:#facc15">●</span> Pin</div>
                    <div style="display:flex; align-items:center; gap: 5px;"><span style="color:#ffffff">●</span> PSA</div>
                    <div style="display:flex; align-items:center; gap: 5px;"><span style="color:#10b981">●</span> PAP</div>`;
 
@@ -469,6 +469,7 @@ class BowlingVisualizer {
         // addLine(this.markerPap.position, this.markerPsa.position, 0x555555);
     }
 }
+
 
 
 
