@@ -27,7 +27,16 @@ test('default chart is within USBC diameter/depth limits and uses inches at true
     for(const h of result.holes){near(Math.hypot(...h.center),R);near(Math.hypot(...h.axis),1);assert.ok(h.radius*2<=1.5625);assert.ok(h.depth<=4.5);}
     near(gap(result.holes[0],result.holes[1]),.25);
     near(gap(result.holes[0],result.holes[2]),4);
-    near(gap(result.holes[1],result.holes[2]),4.125);
+    near(gap(result.holes[1],result.holes[2]),4);
+});
+test('the default three-finger grip has no offset and centers the thumb below the bridge',()=>{
+    const result=D.resolve(),[m,r,t]=result.holes;
+    near(t.center[0],0);near(result.bridgeCenter[0],0);
+    near(m.center[0],-r.center[0]);near(m.center[1],r.center[1]);near(m.center[2],r.center[2]);
+    near(m.axis[0],-r.axis[0]);near(m.axis[1],r.axis[1]);near(m.axis[2],r.axis[2]);
+    assert.equal(result.chart.middleSpan,result.chart.ringSpan);
+    const custom=D.resolve({ringSpan:4.125});
+    assert.equal(custom.valid,true);near(gap(custom.holes[1],custom.holes[2]),4.125);
 });
 test('unequal spans, bore diameters, bridges and pitches preserve edge-to-edge measurements',()=>{
     for(const chart of [

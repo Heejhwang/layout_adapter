@@ -4,7 +4,7 @@
     const R = global.LayoutMath.R;
     const DEFAULTS = Object.freeze({
         middleSpan: 4,
-        ringSpan: 4.125,
+        ringSpan: 4,
         bridge: 0.25,
         middleDiameter: 0.875,
         ringDiameter: 0.875,

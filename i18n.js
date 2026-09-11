@@ -119,7 +119,7 @@ const translations = {
         drill_dimensions: 'Grip dimensions',
         unit_inches: 'Units: inches',
         drill_defaults:
-            'Blank fields use example values: middle span 4″ · ring span 4⅛″ · bridge ¼″.',
+            'Blank fields use a no-offset example: middle span 4″ · ring span 4″ · bridge ¼″.',
         middle_span: 'Middle span',
         ring_span: 'Ring span',
         drill_bridge: 'Bridge',
@@ -286,7 +286,7 @@ const translations = {
         drill_dimensions: '그립 치수',
         unit_inches: '단위: 인치',
         drill_defaults:
-            '빈 칸은 예시값을 사용합니다: 중지 스판 4″ · 약지 스판 4⅛″ · 브릿지 ¼″.',
+            '빈 칸은 옵셋 없는 예시값을 사용합니다: 중지 스판 4″ · 약지 스판 4″ · 브릿지 ¼″.',
         middle_span: '중지 스판',
         ring_span: '약지 스판',
         drill_bridge: '브릿지',

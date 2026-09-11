@@ -27,9 +27,9 @@ Dual Angle, VLS(Pin Buffer), 2LS 사이의 볼링 레이아웃 표기를 번역�
 
 ## 지공차트와 3D
 
-빈 칸의 예시값은 중지 스판 4인치, 약지 스판 4⅛인치, 브릿지 ¼인치입니다. 핑거 지름 ⅞인치·깊이 2½인치, 엄지 지름 1인치·깊이 2¾인치, 핑거 좌우 피치 각각 바깥쪽 ⅜인치·역피치 ¼인치를 사용합니다. 이는 성인 핑거팁 시각화 예시이며 개인에게 맞는 보편적인 피팅 치수가 있다는 의미는 아닙니다.
+빈 칸의 예시값은 중지·약지 스판 각각 4인치, 브릿지 ¼인치입니다. 두 스판을 같게 하여 기본 3핑거 배치의 엄지홀이 브릿지 바로 아래에 놓이도록 하고 옵셋을 없앴습니다. 핑거 지름 ⅞인치·깊이 2½인치, 엄지 지름 1인치·깊이 2¾인치, 핑거 좌우 피치 각각 바깥쪽 ⅜인치·역피치 ¼인치를 사용합니다. 이는 성인 핑거팁 시각화 예시이며 개인에게 맞는 보편적인 피팅 치수가 있다는 의미는 아닙니다.
 
-스판·브릿지는 가까운 구멍 가장자리 사이의 구면 거리입니다. 피치로 생기는 입구 모양까지 반영하여 홀 중심을 풉니다. 피치는 볼 중심 깊이에서의 축 오프셋을 인치로 입력합니다. 좌우 부호는 오른손 정면 기준이고, 왼손은 전체 형상을 반전합니다. 깊이는 구멍 축의 표면 진입점에서 평평한 바닥까지입니다.
+스판·브릿지는 가까운 구멍 가장자리 사이의 구면 거리입니다. 차트의 스판 치수선은 실제 지공차트의 Cut Span 표기처럼 각 핑거홀과 엄지홀 가장자리를 V자 방향으로 연결합니다. 피치로 생기는 입구 모양까지 반영하여 홀 중심을 풉니다. 피치는 볼 중심 깊이에서의 축 오프셋을 인치로 입력합니다. 좌우 부호는 오른손 정면 기준이고, 왼손은 전체 형상을 반전합니다. 깊이는 구멍 축의 표면 진입점에서 평평한 바닥까지입니다.
 
 3D는 원통을 실제 크기로 구성하고 공 표면에서 입구를 잘라 내어 내부 벽과 바닥을 표시합니다. 홀 지름은 직접 잡는 원형 홀 기준입니다. 인서트·엄지 슬러그의 외경, 타원 홀, 베벨과 드릴 비트 끝 형상은 모델링하지 않습니다. 실제 지공 전에는 지공사와 치수·피치를 확인해야 합니다.
 
@@ -42,6 +42,7 @@ Dual Angle, VLS(Pin Buffer), 2LS 사이의 볼링 레이아웃 표기를 번역�
 - [Storm 다운로드](https://www.stormbowling.com/spi-downloads): 2LS 예제와 표기 체계.
 - [Storm 2LS 지공 절차](https://stormproducts.nyc3.cdn.digitaloceanspaces.com/web_page_content/DOWNLOADS/Storm_2LSDrillingInstructions_Pamphlet.pdf): 1–3단계의 거리 원, 4–7단계의 Lightning Arc·미드라인·센터라인, 핑거 방향 배치, 8–9단계의 홀 위치와 깊이. 마지막 페이지의 공식 예제 6개를 회귀 검증합니다.
 - [Storm 2LS 계산표](https://stormproducts.nyc3.cdn.digitaloceanspaces.com/web_page_content/DOWNLOADS/2LS.xlsx): PAP와 Lightning Arc 기준.
+- [Innovative Drilling Spec Sheet](https://innovativebowling.com/assets/images/InnovativeDrillSheet.pdf): 핑거홀과 엄지홀을 직접 연결하는 Cut Span 표기 방식.
 - [USBC Equipment Specifications](https://bowl.com/getmedia/7b8b2ee2-cd3a-4fe1-ba31-1389d8fc9bbf/es_manual.pdf): 문서상 2024년 1월 개정, 공 규격과 홀 규격 및 COG 측정 정의.
 
 ## 실행·검증·배포

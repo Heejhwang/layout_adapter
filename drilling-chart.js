@@ -37,7 +37,7 @@
         const { R, edgeDistance } = window.DrillingMath;
         const mirror = state.common.hand === 'left' ? -1 : 1;
         const project = (p) => [210 + mirror * p[0] * 40, 215 - p[1] * 40];
-        const path = (points) =>
+        const linePath = (points) =>
             points
                 .map(
                     (p, i) =>
@@ -46,7 +46,8 @@
                             .map((v) => v.toFixed(2))
                             .join(','),
                 )
-                .join(' ') + ' Z';
+                .join(' ');
+        const path = (points) => linePath(points) + ' Z';
         const label = (x, y, caption, color = '#68717d', size = 12) =>
             `<text x="${x}" y="${y}" text-anchor="middle" fill="${color}" font-size="${size}">${escape(caption)}</text>`;
         let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 445" aria-hidden="true"><defs><marker id="dim-arrow" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M8 0 0 4 8 8" fill="none" stroke="#7b9bcc" stroke-width="1.2"/></marker></defs><circle cx="210" cy="215" r="${R * 40}" fill="#fff" stroke="#d6dde6"/><path d="M210 43V387M38 215H382" stroke="#e8edf5" stroke-dasharray="4 6"/>`;
@@ -127,20 +128,41 @@
                         R,
                     );
                 };
-                const a = project(edge(finger, thumb)),
-                    b = project(edge(thumb, finger));
-                const x = 210 + side * mirror * 126;
-                svg += `<path d="M${a[0]} ${a[1]}H${x}M${b[0]} ${b[1]}H${x}" stroke="#c5d4e9" fill="none"/><path d="M${x} ${a[1]}V${b[1]}" stroke="#7b9bcc" marker-start="url(#dim-arrow)" marker-end="url(#dim-arrow)"/>`;
+                // Draw the measured cut-to-cut span on the grip, following the
+                // V-shaped span lines of a pro-shop drilling sheet.
+                const start = edge(finger, thumb),
+                    end = edge(thumb, finger);
+                const angle = Math.acos(
+                    Math.max(-1, Math.min(1, dot(unit(start), unit(end)))),
+                );
+                const at = (fraction) =>
+                    add(
+                        scale(
+                            start,
+                            Math.sin((1 - fraction) * angle) / Math.sin(angle),
+                        ),
+                        scale(
+                            end,
+                            Math.sin(fraction * angle) / Math.sin(angle),
+                        ),
+                    );
+                const points = Array.from({ length: 25 }, (_, i) =>
+                    at(i / 24),
+                );
+                const mid = project(at(0.5));
+                const x = mid[0] + side * mirror * 57;
+                const leaderEnd = x - side * mirror * 18;
+                svg += `<path data-span="${id}" d="${linePath(points)}" fill="none" stroke="#7b9bcc" stroke-width="1.3" marker-start="url(#dim-arrow)" marker-end="url(#dim-arrow)"/><path d="M${mid[0]} ${mid[1]}H${leaderEnd}" stroke="#c5d4e9" fill="none"/>`;
                 svg += label(
                     x,
-                    (a[1] + b[1]) / 2 - 8,
+                    mid[1] - 7,
                     format(resolved.chart[id + 'Span']),
                     '#1967d2',
                     14,
                 );
                 svg += label(
                     x,
-                    (a[1] + b[1]) / 2 + 11,
+                    mid[1] + 12,
                     text(id + '_span'),
                     '#68717d',
                     10,
