@@ -1,52 +1,57 @@
-# Bowling Layout Adapter
+# 레이아웃 번역기
 
-A web-based tool for converting bowling ball layouts between different systems and recalculating layouts when a bowler's PAP (Positive Axis Point) changes. Built for pro shop operators and bowlers who need quick, accurate conversions.
+[사이트 열기](https://heejhwang.github.io/layout_adapter/)
 
-🌐 **Live Site**: [https://heejhwang.github.io/layout_adapter/](https://heejhwang.github.io/layout_adapter/)
+Dual Angle, VLS(Pin Buffer), 2LS 사이의 볼링 레이아웃 표기를 번역하고, 기존 공을 새 PAP 기준으로 다시 측정하는 정적 웹 도구입니다.
 
-## Features
+## 사용 방법
 
-### Layout Converter
-Convert layouts between three major systems with real-time calculations:
-- **Dual Angle** — Drilling Angle, Pin to PAP, VAL Angle
-- **VLS (Pin Buffer)** — Pin to PAP, PSA to PAP, Pin Buffer
-- **2LS** — Pin to PAP, PSA to PAP, Pin to COG
+- 시스템 번역기: PAP와 원본 레이아웃을 입력하고 결과 시스템을 선택합니다. 맞바꾸기는 반올림 전 계산값을 옮깁니다.
+- PAP 번역기: 기존 PAP·레이아웃과 새 PAP를 입력합니다. Pin과 PSA의 공 위 위치를 보존합니다.
+- 지공차트: 스판·브릿지·홀 지름·깊이·피치를 입력하면 공 표면의 구멍과 인쇄용 차트가 함께 바뀝니다. 입력값은 해당 브라우저에만 저장됩니다.
+- 사용 손을 바꾸면 전체 배치가 좌우 반전됩니다. 덤리스는 엄지홀을 제외하고 브릿지 중심을 COG로 사용합니다.
 
-### PAP Adjuster
-Recalculate an existing layout for a new PAP to maintain the same ball reaction. Supports all three layout systems.
+소수, 분수, 대분수와 인치 표기(`4.5`, `1/2`, `4 1/2`, `5"`, `5 in`)를 지원합니다. 각도에는 `°`를 붙일 수 있습니다. 숫자 뒤의 임의 문자와 잘못된 단위는 거부합니다. PAP Over는 선택한 손 방향의 양수, Up은 양수, Down은 음수입니다.
 
-### 3D Visualization
-Interactive 3D bowling ball preview powered by Three.js, showing layout points, drilling holes, and reference lines in real time.
+## 계산과 표기
 
-### Additional Features
-- **Bilingual UI** — Full English / 한국어 support with one-click toggle
-- **Hand & Grip Selection** — Right/Left hand, 3-Finger/Thumbless
-- **Slider-based Input** — Intuitive sliders with fraction display (e.g. `4 1/2"`) alongside text input
-- **Validation Warnings** — Alerts for geometrically impossible or unusual layout values
-- **2LS Presets** — Quick-apply preset configurations for common 2LS layouts
-- **Responsive Design** — Optimized for both desktop and mobile
+- 공 둘레 27인치, 반지름 `13.5 / π`인치를 계산과 3D에 동일하게 사용합니다. 지름 약 8.594인치는 USBC의 8.500–8.595인치 범위 안에 있습니다.
+- Pin과 PSA 기준점의 간격은 구면 90도(6¾인치)입니다. 대칭 코어에서는 Pin에서 CG를 지나는 선 위의 PSA 기준점을 의미합니다. 지공 이후 실제 PSA 이동을 예측하는 코어 시뮬레이션은 아닙니다.
+- Dual Angle의 드릴 각도와 VAL 입력은 0–90도입니다. Pin-to-PAP 0은 방향을 정의할 수 없어 거부합니다.
+- VLS는 Pin-to-PAP × PSA-to-PAP × Pin Buffer입니다. 버퍼는 VAL 대원까지의 최단 표면 거리입니다.
+- 2LS는 Pin-to-PAP × PSA-to-PAP × Pin-to-COG입니다. 2LS는 표준 VAL 범위로 역산을 강제하지 않고 두 거리 원의 교점과 지공 방향으로 직접 위치를 구합니다. PAP–COG 대원의 핑거 방향 쪽 교점만 사용합니다. 반대 교점은 선택 항목으로 제공하지 않습니다.
+- 올바른 2LS 배치가 다른 시스템의 표준 방향으로 표현되지 않을 수 있습니다. 이때 결과를 임의의 각도 또는 다른 위치로 바꾸지 않고 표기 불가를 안내하며 원본 위치를 3D에 유지합니다. 같은 원칙을 PAP 번역에 적용합니다.
+- PAP의 수평 거리는 COG에서 미드라인을 따라, 수직 거리는 그 끝에서 수직으로 측정합니다. COG에서 수평 거리만큼의 경도 이동 후 수직 거리만큼의 위도 이동으로 계산합니다.
+- 3핑거의 COG는 각 핑거홀과 엄지홀의 가까운 가장자리 사이 스판 중점들을 평균한 점입니다. 덤리스의 COG는 브릿지 중심입니다. 두 그립에서 동일한 COG 기준 PAP와 동일한 레이아웃을 입력하면 변환 숫자는 같을 수 있습니다.
+- 출력 거리는 1/16인치, 각도는 0.1도로 표시합니다. 입력, 왕복 변환 및 3D에는 반올림 전 수치를 사용합니다.
 
-## How to Use
+## 지공차트와 3D
 
-1. Open `index.html` in any modern web browser, or visit the [live site](https://heejhwang.github.io/layout_adapter/).
-2. **Converter**: Select your source and target systems, enter the PAP and layout values, and see the converted values instantly.
-3. **PAP Adjuster**: Enter the old PAP, the current layout, and the new PAP. The tool will provide the adjusted layout parameters.
+빈 칸의 예시값은 중지 스판 4인치, 약지 스판 4⅛인치, 브릿지 ¼인치입니다. 핑거 지름 ⅞인치·깊이 2½인치, 엄지 지름 1인치·깊이 2¾인치, 핑거 좌우 피치 각각 바깥쪽 ⅜인치·역피치 ¼인치를 사용합니다. 이는 성인 핑거팁 시각화 예시이며 개인에게 맞는 보편적인 피팅 치수가 있다는 의미는 아닙니다.
 
-## Project Structure
+스판·브릿지는 가까운 구멍 가장자리 사이의 구면 거리입니다. 피치로 생기는 입구 모양까지 반영하여 홀 중심을 풉니다. 피치는 볼 중심 깊이에서의 축 오프셋을 인치로 입력합니다. 좌우 부호는 오른손 정면 기준이고, 왼손은 전체 형상을 반전합니다. 깊이는 구멍 축의 표면 진입점에서 평평한 바닥까지입니다.
 
+3D는 원통을 실제 크기로 구성하고 공 표면에서 입구를 잘라 내어 내부 벽과 바닥을 표시합니다. 홀 지름은 직접 잡는 원형 홀 기준입니다. 인서트·엄지 슬러그의 외경, 타원 홀, 베벨과 드릴 비트 끝 형상은 모델링하지 않습니다. 실제 지공 전에는 지공사와 치수·피치를 확인해야 합니다.
+
+홀 지름 상한 1 9/16인치, 깊이 상한 4½인치를 검증합니다. 덤리스 핑거가 2¾인치보다 깊으면 Storm 2LS 권장 깊이를 안내합니다. 이 앱은 정적 무게·규정 전체를 판정하는 인증 도구가 아닙니다.
+
+## 근거 자료
+
+2026년 9월 11일 확인한 제조사·협회 원문입니다.
+
+- [Storm 다운로드](https://www.stormbowling.com/spi-downloads): 2LS 예제와 표기 체계.
+- [Storm 2LS 지공 절차](https://stormproducts.nyc3.cdn.digitaloceanspaces.com/web_page_content/DOWNLOADS/Storm_2LSDrillingInstructions_Pamphlet.pdf): 1–3단계의 거리 원, 4–7단계의 Lightning Arc·미드라인·센터라인, 핑거 방향 배치, 8–9단계의 홀 위치와 깊이. 마지막 페이지의 공식 예제 6개를 회귀 검증합니다.
+- [Storm 2LS 계산표](https://stormproducts.nyc3.cdn.digitaloceanspaces.com/web_page_content/DOWNLOADS/2LS.xlsx): PAP와 Lightning Arc 기준.
+- [USBC Equipment Specifications](https://bowl.com/getmedia/7b8b2ee2-cd3a-4fe1-ba31-1389d8fc9bbf/es_manual.pdf): 문서상 2024년 1월 개정, 공 규격과 홀 규격 및 COG 측정 정의.
+
+## 실행·검증·배포
+
+빌드 없이 정적 서버에서 실행합니다. `vendor/`에 Three.js r128과 OrbitControls, MIT 라이선스를 포함하므로 외부 CDN 없이 3D를 로드합니다. WebGL을 사용할 수 없으면 수치 번역과 지공차트는 계속 사용할 수 있습니다.
+
+```powershell
+npm run check
 ```
-layout_adapter/
-├── index.html        # Main HTML entry point
-├── style.css         # UI styling with glassmorphism, responsive breakpoints
-├── app.js            # Application logic, state management, UI rendering
-├── layout-math.js    # Core math: spherical geometry conversions between systems
-├── visualizer.js     # Three.js 3D bowling ball visualizer
-├── i18n.js           # Internationalization (EN/KO translations)
-└── README.md
-```
 
-## Technology
+검증은 엄격한 입력 파서, 독립 구면좌표 계산, 9개 시스템 조합의 왕복 변환, 2LS 공식 예제, PAP 변경 시 Pin·PSA 보존, 피치가 반영된 스판·브릿지·홀 깊이, 실제 Three.js 객체의 치수·좌우 반전·리소스 정리를 포함합니다.
 
-- Vanilla HTML, CSS, JavaScript — **no build step required**
-- [Three.js](https://threejs.org/) (r128) for 3D visualization, loaded via CDN
-- [Google Fonts (Outfit)](https://fonts.google.com/specimen/Outfit) for typography
+GitHub Pages는 `main` 브랜치의 루트를 배포합니다. 변경 사항을 검증한 후 해당 브랜치에 반영하고, Pages 빌드와 실제 공개 URL을 확인합니다.

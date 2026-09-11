@@ -1,224 +1,1092 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bowling Layout Adapter</title>
-    <meta name="description" content="Professional Bowling Layout Converter and PAP Adjustment Tool">
-    <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
-</head>
-
-<body>
-    <div class="app-container">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title data-i18n="document_title">레이아웃 번역기</title>
+        <meta
+            id="document-description"
+            name="description"
+            content="볼링 레이아웃 시스템과 PAP를 번역하고 지공차트와 3D로 확인하세요."
+        />
+        <meta name="theme-color" content="#ffffff" />
+        <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="style.css" />
+    </head>
+    <body>
         <header class="main-header">
             <div class="header-top">
-                <div class="logo">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                        stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    <span data-i18n="app_title">Layout Adapter</span>
-                </div>
-                <button id="lang-toggle" class="nav-btn lang-btn">한국어</button>
-            </div>
-
-            <div class="header-controls">
-                <nav class="nav-tabs">
-                    <button class="nav-btn active" data-target="converter" data-i18n="tab_converter">Layout
-                        Converter</button>
-                    <button class="nav-btn" data-target="pap-adjuster" data-i18n="tab_adjuster">PAP Adjuster</button>
-                </nav>
-                <!-- Bowler Settings -->
-                <div class="bowler-settings">
-                    <select id="hand-select" class="compact-select" title="Hand">
-                        <option value="right" data-i18n="opt_right_hand">Right</option>
-                        <option value="left" data-i18n="opt_left_hand">Left</option>
-                    </select>
-                    <select id="grip-select" class="compact-select" title="Grip Type">
-                        <option value="3finger" data-i18n="opt_3finger">3-Finger</option>
-                        <option value="thumbless" data-i18n="opt_thumbless">Thumbless</option>
-                    </select>
-                </div>
+                <a
+                    class="logo"
+                    href="./"
+                    data-i18n-aria-label="app_title"
+                    aria-label="레이아웃 번역기"
+                >
+                    <span class="logo-symbol">
+                        <svg
+                            viewBox="0 0 24 24"
+                            width="20"
+                            height="20"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.7"
+                            aria-hidden="true"
+                        >
+                            <path
+                                d="M4 7h15m-4-4 4 4-4 4M20 17H5m4-4-4 4 4 4"
+                            />
+                        </svg>
+                    </span>
+                    <span data-i18n="app_title">레이아웃 번역기</span>
+                </a>
+                <button
+                    id="lang-toggle"
+                    class="text-btn lang-btn"
+                    type="button"
+                    data-i18n-aria-label="action_switch_to_en"
+                >
+                    English
+                </button>
             </div>
         </header>
-
-        <main>
-            <!-- Section 1: Layout Converter -->
-            <section id="converter" class="view active">
-                <div class="card glass-panel">
-                    <h2 data-i18n="sec_converter_title">Layout Conversion</h2>
-                    <p class="subtitle" data-i18n="sec_converter_desc">Convert between Dual Angle, VLS, and 2LS systems.
-                    </p>
-
-                    <div class="pap-bar glass-panel-light">
-                        <h3 data-i18n="pap_common_title">Bowler's PAP (Common)</h3>
+        <div class="app-container">
+            <div class="header-controls">
+                <nav
+                    class="nav-tabs"
+                    role="tablist"
+                    aria-label="주요 도구"
+                    data-i18n-aria-label="aria_main_tabs"
+                >
+                    <button
+                        id="tab-converter"
+                        class="nav-btn active"
+                        type="button"
+                        role="tab"
+                        aria-selected="true"
+                        aria-controls="converter"
+                        tabindex="0"
+                        data-target="converter"
+                        data-i18n="tab_converter"
+                    >
+                        시스템 번역기
+                    </button>
+                    <button
+                        id="tab-pap-adjuster"
+                        class="nav-btn"
+                        type="button"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="pap-adjuster"
+                        tabindex="-1"
+                        data-target="pap-adjuster"
+                        data-i18n="tab_adjuster"
+                    >
+                        PAP 번역기
+                    </button>
+                    <button
+                        id="tab-drilling"
+                        class="nav-btn"
+                        type="button"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="drilling"
+                        tabindex="-1"
+                        data-target="drilling"
+                        data-i18n="tab_drilling"
+                    >
+                        지공차트
+                    </button>
+                </nav>
+                <div class="bowler-settings">
+                    <label
+                        class="sr-only"
+                        for="hand-select"
+                        data-i18n="label_hand"
+                    >
+                        사용 손
+                    </label>
+                    <select id="hand-select" class="compact-select">
+                        <option value="right" data-i18n="opt_right_hand">
+                            오른손
+                        </option>
+                        <option value="left" data-i18n="opt_left_hand">
+                            왼손
+                        </option>
+                    </select>
+                    <label
+                        class="sr-only"
+                        for="grip-select"
+                        data-i18n="label_grip"
+                    >
+                        그립 유형
+                    </label>
+                    <select id="grip-select" class="compact-select">
+                        <option value="3finger" data-i18n="opt_3finger">
+                            3핑거
+                        </option>
+                        <option value="thumbless" data-i18n="opt_thumbless">
+                            덤리스
+                        </option>
+                    </select>
+                </div>
+            </div>
+            <p
+                id="grip-mode-status"
+                class="grip-mode-status"
+                role="status"
+                aria-live="polite"
+                data-i18n="grip_mode_3finger"
+            ></p>
+            <main>
+                <section
+                    id="converter"
+                    class="view active"
+                    role="tabpanel"
+                    aria-labelledby="tab-converter"
+                    aria-hidden="false"
+                    tabindex="0"
+                >
+                    <div class="intro">
+                        <h1 data-i18n="sec_converter_title">
+                            같은 레이아웃, 다른 표기.
+                        </h1>
+                        <p class="subtitle" data-i18n="sec_converter_desc"></p>
+                    </div>
+                    <div class="pap-bar">
+                        <div>
+                            <h2 data-i18n="pap_common_title">내 PAP</h2>
+                            <p data-i18n="pap_help"></p>
+                        </div>
                         <div class="form-row compact">
                             <div class="field">
-                                <label id="conv-pap-over-label" data-i18n="label_over_right">Over →</label>
-                                <input type="text" id="converter-pap-over" placeholder='e.g. 5"' value="5">
+                                <label
+                                    for="converter-pap-over"
+                                    data-i18n="label_over_right"
+                                    id="conv-pap-over-label"
+                                >
+                                    label_over_right
+                                </label>
+                                <input
+                                    id="converter-pap-over"
+                                    type="text"
+                                    value="5"
+                                    autocomplete="off"
+                                    spellcheck="false"
+                                />
                             </div>
                             <div class="field">
-                                <label data-i18n="label_up">Up ↑</label>
-                                <input type="text" id="converter-pap-up" placeholder='e.g. 1 1/8"' value="1">
+                                <label
+                                    for="converter-pap-up"
+                                    data-i18n="label_up"
+                                >
+                                    label_up
+                                </label>
+                                <input
+                                    id="converter-pap-up"
+                                    type="text"
+                                    value="1"
+                                    autocomplete="off"
+                                    spellcheck="false"
+                                />
                             </div>
                         </div>
                     </div>
-
-                    <div class="converter-grid">
-                        <!-- Input Column -->
-                        <div class="input-group">
-                            <h3 data-i18n="grp_source">Source Layout</h3>
-
-                            <label for="source-system" data-i18n="label_system">System</label>
-                            <div class="select-wrapper">
-                                <select id="source-system">
-                                    <option value="dual_angle" data-i18n="sys_dual_angle">Dual Angle</option>
-                                    <option value="vls" data-i18n="sys_vls">Pin Buffer (VLS)</option>
-                                    <option value="2ls" data-i18n="sys_2ls">2LS</option>
-                                </select>
-                            </div>
-
-                            <div id="source-inputs" class="inputs-container">
-                                <!-- Inputs will be injected by JS based on selection -->
-                            </div>
-                        </div>
-
-                        <!-- Arrow Icon -->
-                        <div class="exchange-icon">
-                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                stroke-width="2">
-                                <path d="M5 12h14M12 5l7 7-7 7" />
-                            </svg>
-                        </div>
-
-                        <!-- Output Column -->
-                        <div class="output-group">
-                            <h3 data-i18n="grp_target">Target Layout</h3>
-
-                            <label for="target-system" data-i18n="label_system">System</label>
-                            <div class="select-wrapper">
-                                <select id="target-system">
-                                    <option value="dual_angle" data-i18n="sys_dual_angle">Dual Angle</option>
-                                    <option value="vls" selected data-i18n="sys_vls">Pin Buffer (VLS)</option>
-                                    <option value="2ls" data-i18n="sys_2ls">2LS</option>
-                                </select>
-                            </div>
-
-                            <div id="target-outputs" class="outputs-container">
-                                <!-- Outputs will be displayed here -->
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Layout Validation Warning -->
-                    <div id="converter-warning" class="layout-warning hidden">
-                        <span id="converter-warning-text" data-i18n="warn_invalid_input">⚠️ 경고: 레이아웃 값이 현실적으로 불가능한
-                            값입니다.</span>
-                    </div>
-
-                    <!-- Embedded Visualizer for Converter -->
-                    <div id="vis-container-converter" class="vis-embedded glass-panel-light"
-                        style="margin-top: 1.5rem; height: 350px; border-radius: 8px; position: relative; overflow: hidden;">
-                        <!-- Canvas will move here -->
-                        <div class="vis-overlay" id="vis-overlay-converter" style="pointer-events: none;"></div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Section 2: PAP Adjuster -->
-            <section id="pap-adjuster" class="view">
-                <div class="card glass-panel">
-                    <h2 data-i18n="sec_adj_title">PAP Adjustment</h2>
-                    <p class="subtitle" data-i18n="sec_adj_desc">Recalculate layout based on new Positive Axis Point.
-                    </p>
-
-                    <div class="pap-grid">
-                        <div class="input-column">
-                            <h3 data-i18n="grp_initial">Initial Data</h3>
-                            <div class="form-row">
-                                <div class="field">
-                                    <label id="old-pap-over-label" data-i18n="label_old_pap_over_right">Old PAP
-                                        →</label>
-                                    <input type="text" id="old-pap-over" placeholder='e.g. 5"'>
-                                </div>
-                                <div class="field">
-                                    <label data-i18n="label_old_pap_up">Old PAP ↑</label>
-                                    <input type="text" id="old-pap-up" placeholder='e.g. 1 1/2"'>
-                                </div>
-                            </div>
-
-                            <div class="field">
-                                <label data-i18n="label_system">Layout System</label>
-                                <div class="select-wrapper">
-                                    <select id="adjuster-system">
-                                        <option value="dual_angle" data-i18n="sys_dual_angle">Dual Angle</option>
-                                        <option value="vls" data-i18n="sys_vls">Pin Buffer (VLS)</option>
-                                        <option value="2ls" data-i18n="sys_2ls">2LS</option>
+                    <div class="translator">
+                        <div class="converter-grid">
+                            <div class="input-group">
+                                <div class="system-heading">
+                                    <h2
+                                        id="source-layout-title"
+                                        data-i18n="grp_source"
+                                    >
+                                        원본
+                                    </h2>
+                                    <label
+                                        class="sr-only"
+                                        for="source-system"
+                                        data-i18n="label_system"
+                                    >
+                                        시스템
+                                    </label>
+                                    <select id="source-system">
+                                        <option
+                                            value="dual_angle"
+                                            data-i18n="sys_dual_angle"
+                                        >
+                                            Dual Angle
+                                        </option>
+                                        <option value="vls" data-i18n="sys_vls">
+                                            VLS · Pin Buffer
+                                        </option>
+                                        <option value="2ls" data-i18n="sys_2ls">
+                                            2LS
+                                        </option>
                                     </select>
                                 </div>
+                                <p id="source-help" class="system-help"></p>
+                                <div
+                                    id="source-inputs"
+                                    class="inputs-container"
+                                    role="group"
+                                    aria-labelledby="source-layout-title"
+                                ></div>
                             </div>
-                            <div class="field">
-                                <label data-i18n="label_orig_layout">Original Layout Parameters</label>
-                                <div id="adjuster-inputs" class="inputs-container">
-                                    <!-- Dynamic inputs -->
+                            <button
+                                id="swap-systems"
+                                class="exchange-icon"
+                                type="button"
+                                data-i18n-aria-label="action_swap"
+                                title="시스템 맞바꾸기"
+                            >
+                                <svg
+                                    viewBox="0 0 24 24"
+                                    width="20"
+                                    height="20"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="1.7"
+                                    aria-hidden="true"
+                                >
+                                    <path
+                                        d="M4 7h15m-4-4 4 4-4 4M20 17H5m4-4-4 4 4 4"
+                                    />
+                                </svg>
+                            </button>
+                            <div class="output-group">
+                                <div class="system-heading">
+                                    <h2
+                                        id="target-layout-title"
+                                        data-i18n="grp_target"
+                                    >
+                                        번역 결과
+                                    </h2>
+                                    <label
+                                        class="sr-only"
+                                        for="target-system"
+                                        data-i18n="label_system"
+                                    >
+                                        시스템
+                                    </label>
+                                    <select id="target-system">
+                                        <option
+                                            value="dual_angle"
+                                            data-i18n="sys_dual_angle"
+                                        >
+                                            Dual Angle
+                                        </option>
+                                        <option
+                                            value="vls"
+                                            selected
+                                            data-i18n="sys_vls"
+                                        >
+                                            VLS · Pin Buffer
+                                        </option>
+                                        <option value="2ls" data-i18n="sys_2ls">
+                                            2LS
+                                        </option>
+                                    </select>
+                                </div>
+                                <p id="target-help" class="system-help"></p>
+                                <div
+                                    id="target-outputs"
+                                    class="outputs-container"
+                                    role="status"
+                                    aria-live="polite"
+                                    aria-atomic="true"
+                                    aria-labelledby="target-layout-title"
+                                ></div>
+                                <div class="result-actions">
+                                    <span
+                                        id="conversion-status"
+                                        class="result-status"
+                                        role="status"
+                                    ></span>
+                                    <button
+                                        id="copy-result"
+                                        class="text-btn"
+                                        type="button"
+                                        data-i18n="action_copy"
+                                    >
+                                        결과 복사
+                                    </button>
                                 </div>
                             </div>
                         </div>
-
-                        <div class="input-column">
-                            <h3 data-i18n="grp_new">New Parameters</h3>
-                            <div class="form-row">
-                                <div class="field">
-                                    <label id="new-pap-over-label" data-i18n="label_new_pap_over_right">New PAP
-                                        →</label>
-                                    <input type="text" id="new-pap-over" placeholder='e.g. 4 1/2"'>
-                                </div>
-                                <div class="field">
-                                    <label data-i18n="label_new_pap_up">New PAP ↑</label>
-                                    <input type="text" id="new-pap-up" placeholder='e.g. 7/8"'>
-                                </div>
-                            </div>
-
-                            <div id="pap-result" class="result-box-compact hidden">
-                                <span class="result-label" data-i18n="label_adj_result">Adjusted Layout:</span>
-                                <span class="result-value" id="pap-result-value">--</span>
-                            </div>
-
-                            <!-- PAP Adjuster Validation Warning -->
-                            <div id="adjuster-warning" class="layout-warning hidden">
-                                <span id="adjuster-warning-text" data-i18n="warn_unusual_output">⚠️ 경고: 레이아웃 값이 일반적이지
-                                    않습니다.</span>
-                            </div>
-
-                            <!-- Embedded Visualizer for Adjuster - inside second column -->
-                            <div id="vis-container-adjuster" class="vis-embedded glass-panel-light"
-                                style="margin-top: 1rem; height: 280px; border-radius: 8px; position: relative; overflow: hidden;">
-                                <!-- Canvas will move here -->
-                                <div class="vis-overlay" id="vis-overlay-adjuster" style="pointer-events: none;"></div>
-                            </div>
+                        <div
+                            id="converter-warning"
+                            class="layout-warning hidden"
+                            role="alert"
+                            aria-live="assertive"
+                            aria-atomic="true"
+                        >
+                            <span id="converter-warning-text"></span>
                         </div>
                     </div>
+                    <div class="below-grid">
+                        <div class="preview-card">
+                            <div class="preview-heading">
+                                <h3 data-i18n="sec_vis_title">3D 미리보기</h3>
+                                <div class="preview-actions">
+                                    <button
+                                        type="button"
+                                        class="text-btn"
+                                        data-camera="front"
+                                        data-i18n="view_front"
+                                    >
+                                        정면
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="text-btn"
+                                        data-camera="top"
+                                        data-i18n="view_top"
+                                    >
+                                        위에서
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="text-btn"
+                                        data-camera="reset"
+                                        data-i18n="view_reset"
+                                    >
+                                        초기화
+                                    </button>
+                                </div>
+                            </div>
+                            <div
+                                id="vis-container-converter"
+                                class="vis-embedded"
+                                role="group"
+                                aria-labelledby="vis-title-converter"
+                            >
+                                <h3
+                                    id="vis-title-converter"
+                                    class="sr-only"
+                                    data-i18n="sec_vis_title"
+                                >
+                                    3D 미리보기
+                                </h3>
+                                <p
+                                    id="vis-description-converter"
+                                    class="vis-description sr-only"
+                                    data-i18n="vis_canvas_description"
+                                ></p>
+                                <p
+                                    class="vis-fallback"
+                                    role="status"
+                                    aria-live="polite"
+                                    data-i18n="vis_loading"
+                                >
+                                    3D 불러오는 중
+                                </p>
+                                <div
+                                    class="vis-overlay"
+                                    aria-hidden="true"
+                                ></div>
+                            </div>
+                            <p class="preview-hint" data-i18n="vis_interaction">
+                                드래그하여 회전 · 스크롤하여 확대
+                            </p>
+                        </div>
+                        <aside class="explanation">
+                            <span class="eyebrow" data-i18n="guide_eyebrow">
+                                HOW IT WORKS
+                            </span>
+                            <h2 data-i18n="guide_title">
+                                표기가 달라도, 위치는 그대로.
+                            </h2>
+                            <p data-i18n="guide_body"></p>
+                            <dl class="glossary">
+                                <div>
+                                    <dt>Pin</dt>
+                                    <dd data-i18n="help_pin"></dd>
+                                </div>
+                                <div>
+                                    <dt>PSA</dt>
+                                    <dd data-i18n="help_psa"></dd>
+                                </div>
+                                <div>
+                                    <dt>VAL</dt>
+                                    <dd data-i18n="help_val"></dd>
+                                </div>
+                                <div>
+                                    <dt>COG</dt>
+                                    <dd data-i18n="help_cog"></dd>
+                                </div>
+                            </dl>
+                            <button
+                                type="button"
+                                class="text-btn"
+                                data-open-drilling
+                                data-i18n="open_drilling"
+                            >
+                                지공 치수 설정 →
+                            </button>
+                            <p
+                                class="fine-print"
+                                data-i18n="precision_note"
+                            ></p>
+                        </aside>
+                    </div>
+                </section>
+                <section
+                    id="pap-adjuster"
+                    class="view"
+                    role="tabpanel"
+                    aria-labelledby="tab-pap-adjuster"
+                    aria-hidden="true"
+                    tabindex="0"
+                >
+                    <div class="intro">
+                        <h1 data-i18n="sec_adj_title">내 PAP로 다시 읽기.</h1>
+                        <p class="subtitle" data-i18n="sec_adj_desc"></p>
+                    </div>
+                    <div class="pap-grid translator">
+                        <div class="input-column">
+                            <h2 data-i18n="grp_initial">기존 기준</h2>
+                            <div class="form-row">
+                                <div class="field">
+                                    <label
+                                        for="old-pap-over"
+                                        data-i18n="label_old_pap_over_right"
+                                        id="old-pap-over-label"
+                                    >
+                                        label_old_pap_over_right
+                                    </label>
+                                    <input
+                                        id="old-pap-over"
+                                        type="text"
+                                        value="5"
+                                        autocomplete="off"
+                                        spellcheck="false"
+                                    />
+                                </div>
+                                <div class="field">
+                                    <label
+                                        for="old-pap-up"
+                                        data-i18n="label_old_pap_up"
+                                    >
+                                        label_old_pap_up
+                                    </label>
+                                    <input
+                                        id="old-pap-up"
+                                        type="text"
+                                        value="1"
+                                        autocomplete="off"
+                                        spellcheck="false"
+                                    />
+                                </div>
+                            </div>
+                            <label
+                                for="adjuster-system"
+                                data-i18n="label_system"
+                            >
+                                시스템
+                            </label>
+                            <select id="adjuster-system">
+                                <option
+                                    value="dual_angle"
+                                    data-i18n="sys_dual_angle"
+                                >
+                                    Dual Angle
+                                </option>
+                                <option value="vls" data-i18n="sys_vls">
+                                    VLS · Pin Buffer
+                                </option>
+                                <option value="2ls" data-i18n="sys_2ls">
+                                    2LS
+                                </option>
+                            </select>
+                            <p id="adjuster-help" class="system-help"></p>
+                            <div
+                                id="adjuster-inputs"
+                                class="inputs-container"
+                            ></div>
+                        </div>
+                        <div class="input-column output-column">
+                            <h2 data-i18n="grp_new">새 PAP</h2>
+                            <div class="form-row">
+                                <div class="field">
+                                    <label
+                                        for="new-pap-over"
+                                        data-i18n="label_new_pap_over_right"
+                                        id="new-pap-over-label"
+                                    >
+                                        label_new_pap_over_right
+                                    </label>
+                                    <input
+                                        id="new-pap-over"
+                                        type="text"
+                                        value="4 1/2"
+                                        autocomplete="off"
+                                        spellcheck="false"
+                                    />
+                                </div>
+                                <div class="field">
+                                    <label
+                                        for="new-pap-up"
+                                        data-i18n="label_new_pap_up"
+                                    >
+                                        label_new_pap_up
+                                    </label>
+                                    <input
+                                        id="new-pap-up"
+                                        type="text"
+                                        value="1"
+                                        autocomplete="off"
+                                        spellcheck="false"
+                                    />
+                                </div>
+                            </div>
+                            <div
+                                id="pap-result"
+                                class="result-box-compact hidden"
+                                role="status"
+                                aria-live="polite"
+                                aria-atomic="true"
+                            >
+                                <span
+                                    class="result-label"
+                                    data-i18n="label_adj_result"
+                                ></span>
+                                <span
+                                    class="result-value"
+                                    id="pap-result-value"
+                                >
+                                    —
+                                </span>
+                            </div>
+                            <div
+                                id="adjuster-warning"
+                                class="layout-warning hidden"
+                                role="alert"
+                                aria-live="assertive"
+                                aria-atomic="true"
+                            >
+                                <span id="adjuster-warning-text"></span>
+                            </div>
+                            <button
+                                id="copy-pap-result"
+                                class="text-btn"
+                                type="button"
+                                data-i18n="action_copy"
+                            ></button>
+                            <p
+                                class="fine-print"
+                                data-i18n="pap_preserve_note"
+                            ></p>
+                        </div>
+                    </div>
+                    <div class="preview-card wide-preview">
+                        <div class="preview-heading">
+                            <h3 data-i18n="sec_vis_title">3D 미리보기</h3>
+                            <div class="preview-actions">
+                                <button
+                                    type="button"
+                                    class="text-btn"
+                                    data-camera="front"
+                                    data-i18n="view_front"
+                                >
+                                    정면
+                                </button>
+                                <button
+                                    type="button"
+                                    class="text-btn"
+                                    data-camera="top"
+                                    data-i18n="view_top"
+                                >
+                                    위에서
+                                </button>
+                                <button
+                                    type="button"
+                                    class="text-btn"
+                                    data-camera="reset"
+                                    data-i18n="view_reset"
+                                >
+                                    초기화
+                                </button>
+                            </div>
+                        </div>
+                        <div
+                            id="vis-container-adjuster"
+                            class="vis-embedded"
+                            role="group"
+                            aria-labelledby="vis-title-adjuster"
+                        >
+                            <h3
+                                id="vis-title-adjuster"
+                                class="sr-only"
+                                data-i18n="sec_vis_title"
+                            >
+                                3D 미리보기
+                            </h3>
+                            <p
+                                id="vis-description-adjuster"
+                                class="vis-description sr-only"
+                                data-i18n="vis_canvas_description"
+                            ></p>
+                            <p
+                                class="vis-fallback"
+                                role="status"
+                                aria-live="polite"
+                                data-i18n="vis_loading"
+                            >
+                                3D 불러오는 중
+                            </p>
+                            <div class="vis-overlay" aria-hidden="true"></div>
+                        </div>
+                        <p class="preview-hint" data-i18n="vis_interaction">
+                            드래그하여 회전 · 스크롤하여 확대
+                        </p>
+                    </div>
+                </section>
+                <section
+                    id="drilling"
+                    class="view"
+                    role="tabpanel"
+                    aria-labelledby="tab-drilling"
+                    aria-hidden="true"
+                    tabindex="0"
+                >
+                    <div class="intro chart-intro">
+                        <div>
+                            <h1 data-i18n="tab_drilling">지공차트</h1>
+                            <p class="subtitle" data-i18n="drill_desc"></p>
+                        </div>
+                        <div class="chart-actions">
+                            <button
+                                id="reset-drilling"
+                                class="text-btn"
+                                type="button"
+                                data-i18n="drill_reset"
+                            ></button>
+                            <button
+                                id="print-drilling"
+                                class="primary-btn"
+                                type="button"
+                                data-i18n="drill_print"
+                            ></button>
+                        </div>
+                    </div>
+                    <div class="chart-grid">
+                        <div class="chart-form">
+                            <div class="chart-label-row">
+                                <h2 data-i18n="drill_dimensions"></h2>
+                                <span class="unit-chip" data-i18n="unit_inches">
+                                    단위: 인치
+                                </span>
+                            </div>
+                            <p
+                                class="fine-print"
+                                data-i18n="drill_defaults"
+                            ></p>
+                            <div class="span-fields">
+                                <div class="field thumb-setting">
+                                    <label
+                                        for="drill-middleSpan"
+                                        data-i18n="middle_span"
+                                    ></label>
+                                    <input
+                                        id="drill-middleSpan"
+                                        data-drill="middleSpan"
+                                        type="text"
+                                    />
+                                </div>
+                                <div class="field thumb-setting">
+                                    <label
+                                        for="drill-ringSpan"
+                                        data-i18n="ring_span"
+                                    ></label>
+                                    <input
+                                        id="drill-ringSpan"
+                                        data-drill="ringSpan"
+                                        type="text"
+                                    />
+                                </div>
+                                <div class="field">
+                                    <label
+                                        for="drill-bridge"
+                                        data-i18n="drill_bridge"
+                                    ></label>
+                                    <input
+                                        id="drill-bridge"
+                                        data-drill="bridge"
+                                        type="text"
+                                    />
+                                </div>
+                            </div>
+                            <p
+                                class="fine-print"
+                                data-i18n="drill_span_help"
+                            ></p>
+                            <div class="table-scroll">
+                                <table class="drill-table">
+                                    <thead>
+                                        <tr>
+                                            <th
+                                                scope="col"
+                                                data-i18n="drill_item"
+                                            ></th>
+                                            <th
+                                                scope="col"
+                                                data-i18n="finger_middle"
+                                            ></th>
+                                            <th
+                                                scope="col"
+                                                data-i18n="finger_ring"
+                                            ></th>
+                                            <th
+                                                scope="col"
+                                                class="thumb-setting"
+                                                data-i18n="finger_thumb"
+                                            ></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <th
+                                                scope="row"
+                                                data-i18n="drill_diameter"
+                                            >
+                                                drill_diameter
+                                            </th>
+                                            <td>
+                                                <label
+                                                    class="sr-only"
+                                                    for="drill-middleDiameter"
+                                                    data-i18n="middle_Diameter"
+                                                ></label>
+                                                <input
+                                                    id="drill-middleDiameter"
+                                                    data-drill="middleDiameter"
+                                                    type="text"
+                                                    autocomplete="off"
+                                                    spellcheck="false"
+                                                />
+                                            </td>
+                                            <td>
+                                                <label
+                                                    class="sr-only"
+                                                    for="drill-ringDiameter"
+                                                    data-i18n="ring_Diameter"
+                                                ></label>
+                                                <input
+                                                    id="drill-ringDiameter"
+                                                    data-drill="ringDiameter"
+                                                    type="text"
+                                                    autocomplete="off"
+                                                    spellcheck="false"
+                                                />
+                                            </td>
+                                            <td class="thumb-setting">
+                                                <label
+                                                    class="sr-only"
+                                                    for="drill-thumbDiameter"
+                                                    data-i18n="thumb_Diameter"
+                                                ></label>
+                                                <input
+                                                    id="drill-thumbDiameter"
+                                                    data-drill="thumbDiameter"
+                                                    type="text"
+                                                    autocomplete="off"
+                                                    spellcheck="false"
+                                                />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th
+                                                scope="row"
+                                                data-i18n="drill_depth"
+                                            >
+                                                drill_depth
+                                            </th>
+                                            <td>
+                                                <label
+                                                    class="sr-only"
+                                                    for="drill-middleDepth"
+                                                    data-i18n="middle_Depth"
+                                                ></label>
+                                                <input
+                                                    id="drill-middleDepth"
+                                                    data-drill="middleDepth"
+                                                    type="text"
+                                                    autocomplete="off"
+                                                    spellcheck="false"
+                                                />
+                                            </td>
+                                            <td>
+                                                <label
+                                                    class="sr-only"
+                                                    for="drill-ringDepth"
+                                                    data-i18n="ring_Depth"
+                                                ></label>
+                                                <input
+                                                    id="drill-ringDepth"
+                                                    data-drill="ringDepth"
+                                                    type="text"
+                                                    autocomplete="off"
+                                                    spellcheck="false"
+                                                />
+                                            </td>
+                                            <td class="thumb-setting">
+                                                <label
+                                                    class="sr-only"
+                                                    for="drill-thumbDepth"
+                                                    data-i18n="thumb_Depth"
+                                                ></label>
+                                                <input
+                                                    id="drill-thumbDepth"
+                                                    data-drill="thumbDepth"
+                                                    type="text"
+                                                    autocomplete="off"
+                                                    spellcheck="false"
+                                                />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th
+                                                scope="row"
+                                                data-i18n="drill_lateral"
+                                            >
+                                                drill_lateral
+                                            </th>
+                                            <td>
+                                                <label
+                                                    class="sr-only"
+                                                    for="drill-middleLateral"
+                                                    data-i18n="middle_Lateral"
+                                                ></label>
+                                                <input
+                                                    id="drill-middleLateral"
+                                                    data-drill="middleLateral"
+                                                    type="text"
+                                                    autocomplete="off"
+                                                    spellcheck="false"
+                                                />
+                                            </td>
+                                            <td>
+                                                <label
+                                                    class="sr-only"
+                                                    for="drill-ringLateral"
+                                                    data-i18n="ring_Lateral"
+                                                ></label>
+                                                <input
+                                                    id="drill-ringLateral"
+                                                    data-drill="ringLateral"
+                                                    type="text"
+                                                    autocomplete="off"
+                                                    spellcheck="false"
+                                                />
+                                            </td>
+                                            <td class="thumb-setting">
+                                                <label
+                                                    class="sr-only"
+                                                    for="drill-thumbLateral"
+                                                    data-i18n="thumb_Lateral"
+                                                ></label>
+                                                <input
+                                                    id="drill-thumbLateral"
+                                                    data-drill="thumbLateral"
+                                                    type="text"
+                                                    autocomplete="off"
+                                                    spellcheck="false"
+                                                />
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th
+                                                scope="row"
+                                                data-i18n="drill_forward"
+                                            >
+                                                drill_forward
+                                            </th>
+                                            <td>
+                                                <label
+                                                    class="sr-only"
+                                                    for="drill-middleForward"
+                                                    data-i18n="middle_Forward"
+                                                ></label>
+                                                <input
+                                                    id="drill-middleForward"
+                                                    data-drill="middleForward"
+                                                    type="text"
+                                                    autocomplete="off"
+                                                    spellcheck="false"
+                                                />
+                                            </td>
+                                            <td>
+                                                <label
+                                                    class="sr-only"
+                                                    for="drill-ringForward"
+                                                    data-i18n="ring_Forward"
+                                                ></label>
+                                                <input
+                                                    id="drill-ringForward"
+                                                    data-drill="ringForward"
+                                                    type="text"
+                                                    autocomplete="off"
+                                                    spellcheck="false"
+                                                />
+                                            </td>
+                                            <td class="thumb-setting">
+                                                <label
+                                                    class="sr-only"
+                                                    for="drill-thumbForward"
+                                                    data-i18n="thumb_Forward"
+                                                ></label>
+                                                <input
+                                                    id="drill-thumbForward"
+                                                    data-drill="thumbForward"
+                                                    type="text"
+                                                    autocomplete="off"
+                                                    spellcheck="false"
+                                                />
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p
+                                class="fine-print"
+                                data-i18n="drill_pitch_help"
+                            ></p>
+                            <p
+                                id="drilling-warning"
+                                class="layout-warning"
+                                role="alert"
+                                hidden
+                            ></p>
+                            <p
+                                id="drilling-status"
+                                class="result-status"
+                                role="status"
+                            ></p>
+                            <p
+                                class="fine-print"
+                                data-i18n="drill_fit_note"
+                            ></p>
+                        </div>
+                        <div class="chart-drawing">
+                            <div
+                                id="drilling-diagram"
+                                role="img"
+                                data-i18n-aria-label="drill_diagram_label"
+                            ></div>
+                            <p
+                                class="fine-print"
+                                data-i18n="drill_diagram_note"
+                            ></p>
+                        </div>
+                    </div>
+                    <div class="preview-card wide-preview">
+                        <div class="preview-heading">
+                            <h3 data-i18n="sec_vis_title">3D 미리보기</h3>
+                            <div class="preview-actions">
+                                <button
+                                    type="button"
+                                    class="text-btn"
+                                    data-camera="front"
+                                    data-i18n="view_front"
+                                >
+                                    정면
+                                </button>
+                                <button
+                                    type="button"
+                                    class="text-btn"
+                                    data-camera="top"
+                                    data-i18n="view_top"
+                                >
+                                    위에서
+                                </button>
+                                <button
+                                    type="button"
+                                    class="text-btn"
+                                    data-camera="reset"
+                                    data-i18n="view_reset"
+                                >
+                                    초기화
+                                </button>
+                            </div>
+                        </div>
+                        <div
+                            id="vis-container-drilling"
+                            class="vis-embedded"
+                            role="group"
+                            aria-labelledby="vis-title-drilling"
+                        >
+                            <h3
+                                id="vis-title-drilling"
+                                class="sr-only"
+                                data-i18n="sec_vis_title"
+                            >
+                                3D 미리보기
+                            </h3>
+                            <p
+                                id="vis-description-drilling"
+                                class="vis-description sr-only"
+                                data-i18n="vis_canvas_description"
+                            ></p>
+                            <p
+                                class="vis-fallback"
+                                role="status"
+                                aria-live="polite"
+                                data-i18n="vis_loading"
+                            >
+                                3D 불러오는 중
+                            </p>
+                            <div class="vis-overlay" aria-hidden="true"></div>
+                        </div>
+                        <p class="preview-hint" data-i18n="vis_interaction">
+                            드래그하여 회전 · 스크롤하여 확대
+                        </p>
+                    </div>
+                </section>
+            </main>
+            <footer>
+                <span data-i18n="footer_note"></span>
+                <div>
+                    <a
+                        href="https://www.stormbowling.com/spi-downloads"
+                        target="_blank"
+                        rel="noopener"
+                        data-i18n="source_storm"
+                    >
+                        Storm 레이아웃 자료
+                    </a>
+                    <a
+                        href="https://bowl.com/getmedia/7b8b2ee2-cd3a-4fe1-ba31-1389d8fc9bbf/es_manual.pdf"
+                        target="_blank"
+                        rel="noopener"
+                        data-i18n="source_usbc"
+                    >
+                        USBC 규격
+                    </a>
                 </div>
-            </section>
-
-            <!-- Hidden Canvas holder (Initial) -->
-            <div id="canvas-holder" style="display:none;"></div>
-        </main>
-    </div>
-    <!-- Three.js Dependencies -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-
-    <script src="i18n.js"></script>
-    <script src="layout-math.js"></script>
-    <script src="visualizer.js"></script>
-    <script src="app.js"></script>
-</body>
-
+            </footer>
+            <div id="toast" class="toast" role="status" hidden></div>
+        </div>
+        <noscript>
+            <p class="noscript-warning">
+                이 도구는 계산과 3D 미리보기를 위해 JavaScript가 필요합니다.
+            </p>
+        </noscript>
+        <script
+            src="vendor/three.min.js"
+            integrity="sha512-dLxUelApnYxpLt6K2iomGngnHO83iUvZytA3YjDUCjT0HDOHKXnVYdf3hU4JjM8uEhxf9nD1/ey98U3t2vZ0qQ=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+        ></script>
+        <script
+            src="vendor/OrbitControls.js"
+            integrity="sha512-OWjUR2x9gBIRwr3XoaFoDXJzmEnVBXMj32nSjd701AcX852h17fmwreGY3Ne/BuLN4bemMBrnE+RAtLekdUqZg=="
+            crossorigin="anonymous"
+            referrerpolicy="no-referrer"
+        ></script>
+        <script src="i18n.js"></script>
+        <script src="layout-math.js"></script>
+        <script src="drilling-math.js"></script>
+        <script src="visualizer.js"></script>
+        <script src="app.js"></script>
+        <script src="drilling-chart.js"></script>
+    </body>
 </html>

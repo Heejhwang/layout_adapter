@@ -7,52 +7,82 @@ if (!window.LayoutMath) {
 }
 
 const {
-    radFromInch, inchFromRad,
-    cos, acos, abs,
-    vlsToDa, vlsTo2ls,
-    daToVls, daTo2ls,
-    twoLsToDa, twoLsToVls,
-    calculatePapAdjustment
+    radFromInch,
+    inchFromRad,
+    cos,
+    acos,
+    abs,
+    vlsToDa,
+    vlsTo2ls,
+    daToVls,
+    daTo2ls,
+    twoLsToDa,
+    twoLsToVls,
+    calculatePapAdjustment,
 } = window.LayoutMath;
 
 // -- Formatting Utils --
-const gcd = (a, b) => b ? gcd(b, a % b) : a;
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
 
-function parseFraction(value) {
-    if (!value) return 0;
-    if (typeof value === 'number') return value;
+function parseFraction(value, unit = null) {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : NaN;
+    }
+    if (value === null || value === undefined) return NaN;
 
-    value = value.toString().trim();
-    if (!value) return 0;
+    let text = String(value).trim();
+    if (!text) return NaN;
 
-    // Handle standard decimals
-    if (!value.includes('/')) {
-        return parseFloat(value) || 0;
+    const anyUnitSuffix = /(?:"|in|°)\s*$/i;
+    const allowedUnitSuffix =
+        unit === 'angle'
+            ? /°\s*$/
+            : unit === 'dist' || unit === 'cog'
+              ? /(?:"|in)\s*$/i
+              : anyUnitSuffix;
+
+    if (anyUnitSuffix.test(text)) {
+        if (!allowedUnitSuffix.test(text)) return NaN;
+        text = text.replace(allowedUnitSuffix, '').trim();
+        if (!text) return NaN;
     }
 
-    // Handle mixed fractions "4 1/2" or simple fractions "1/2"
-    const parts = value.split(' ');
-
-    if (parts.length === 1) {
-        // Just fraction "1/2"
-        const [num, den] = parts[0].split('/');
-        return (parseFloat(num) || 0) / (parseFloat(den) || 1);
-    } else if (parts.length >= 2) {
-        // Mixed "4 1/2"
-        const whole = parseFloat(parts[0]) || 0;
-        const [num, den] = parts[1].split('/');
-        const fraction = (parseFloat(num) || 0) / (parseFloat(den) || 1);
-        return whole + fraction;
+    const decimalMatch = text.match(/^([+-]?)(?:(\d+(?:\.\d*)?)|(\.\d+))$/);
+    if (decimalMatch) {
+        const parsed = Number(text);
+        return Number.isFinite(parsed) ? parsed : NaN;
     }
 
-    return 0;
+    const mixedMatch = text.match(/^([+-]?)(\d+)\s+(\d+)\s*\/\s*(\d+)$/);
+    if (mixedMatch) {
+        const [, sign, wholeText, numeratorText, denominatorText] = mixedMatch;
+        const denominator = Number(denominatorText);
+        if (denominator === 0) return NaN;
+        const magnitude =
+            Number(wholeText) + Number(numeratorText) / denominator;
+        const parsed = sign === '-' ? -magnitude : magnitude;
+        return Number.isFinite(parsed) ? parsed : NaN;
+    }
+
+    const fractionMatch = text.match(/^([+-]?)(\d+)\s*\/\s*(\d+)$/);
+    if (fractionMatch) {
+        const [, sign, numeratorText, denominatorText] = fractionMatch;
+        const denominator = Number(denominatorText);
+        if (denominator === 0) return NaN;
+        const magnitude = Number(numeratorText) / denominator;
+        const parsed = sign === '-' ? -magnitude : magnitude;
+        return Number.isFinite(parsed) ? parsed : NaN;
+    }
+
+    return NaN;
 }
 
 function formatFraction(value) {
-    if (isNaN(value)) return "--";
+    if (!Number.isFinite(value)) return '--';
 
     // Round to nearest 1/16
-    const sixteen = Math.round(value * 16);
+    const sign = value < 0 ? '-' : '';
+    const sixteen = Math.round(Math.abs(value) * 16);
 
     if (sixteen === 0) return '0"';
 
@@ -60,7 +90,7 @@ function formatFraction(value) {
     const rem = sixteen % 16;
 
     if (rem === 0) {
-        return `${whole}"`;
+        return `${sign}${whole}"`;
     }
 
     const divisor = gcd(rem, 16);
@@ -68,43 +98,41 @@ function formatFraction(value) {
     const den = 16 / divisor;
 
     if (whole === 0) {
-        return `${num}/${den}"`;
+        return `${sign}${num}/${den}"`;
     }
-    return `${whole} ${num}/${den}"`;
+    return `${sign}${whole} ${num}/${den}"`;
 }
 
 function formatAngle(value) {
-    if (isNaN(value)) return "--";
-    // Round to nearest 5 degrees
-    const rounded = Math.round(value / 5) * 5;
-    return `${rounded}°`;
+    if (!Number.isFinite(value)) return '--';
+    return Number(value.toFixed(1)) + '°';
 }
 
 // -- State Management --
 const state = {
     common: {
-        hand: 'right',      // 'right' or 'left'
-        grip: '3finger'     // '3finger' or 'thumbless'
+        hand: 'right', // 'right' or 'left'
+        grip: '3finger', // '3finger' or 'thumbless'
     },
     converter: {
         sourceSystem: 'dual_angle',
         targetSystem: 'vls',
         inputs: {},
-        pap: { over: 5, up: 1 }
+        pap: { over: 5, up: 1 },
     },
     adjuster: {
         system: 'dual_angle',
         inputs: {},
-    }
+    },
 };
 
 const DIST_STEP = 1 / 16;
 const DIST_MAX = 6.75;
 const ANGLE_STEP = 5;
 const ANGLE_MAX = 90;
+const GEOMETRY_TOLERANCE = 0.05;
 
 let sliderBindings = [];
-
 
 // -- Visualizer --
 let visualizer = null;
@@ -115,30 +143,194 @@ let dom = {};
 // -- Configs --
 const SYSTEMS = {
     dual_angle: {
-        name: "Dual Angle",
+        name: 'Dual Angle',
         fields: [
             { id: 'da_drill', labelKey: 'fld_da_drill', unit: 'angle' },
             { id: 'da_pin', labelKey: 'fld_da_pin', unit: 'dist' },
-            { id: 'da_val', labelKey: 'fld_da_val', unit: 'angle' }
-        ]
+            { id: 'da_val', labelKey: 'fld_da_val', unit: 'angle' },
+        ],
     },
     vls: {
-        name: "Pin Buffer (VLS)",
+        name: 'Pin Buffer (VLS)',
         fields: [
             { id: 'vls_pin', labelKey: 'fld_vls_pin', unit: 'dist' },
             { id: 'vls_psa', labelKey: 'fld_vls_psa', unit: 'dist' },
-            { id: 'vls_buffer', labelKey: 'fld_vls_buffer', unit: 'dist' }
-        ]
+            { id: 'vls_buffer', labelKey: 'fld_vls_buffer', unit: 'dist' },
+        ],
     },
     '2ls': {
-        name: "2LS",
+        name: '2LS',
         fields: [
             { id: '2ls_pin', labelKey: 'fld_2ls_pin', unit: 'dist' },
             { id: '2ls_psa', labelKey: 'fld_2ls_psa', unit: 'dist' },
-            { id: '2ls_cg', labelKey: 'fld_2ls_cg', unit: 'dist' }
-        ]
-    }
+            { id: '2ls_cg', labelKey: 'fld_2ls_cg', unit: 'cog' },
+        ],
+    },
 };
+
+const GRIP_TYPES = new Set(['3finger', 'thumbless']);
+
+function updateGripModeStatus(grip) {
+    if (!dom.gripModeStatus) return;
+    const key =
+        grip === 'thumbless' ? 'grip_mode_thumbless' : 'grip_mode_3finger';
+    dom.gripModeStatus.setAttribute('data-i18n', key);
+    dom.gripModeStatus.textContent = t(key);
+}
+
+function applyGripMode(grip, { recalculate = true } = {}) {
+    if (!GRIP_TYPES.has(grip)) return false;
+
+    state.common.grip = grip;
+    if (dom.gripSelect) dom.gripSelect.value = grip;
+    updateGripModeStatus(grip);
+    if (visualizer) visualizer.setGripType(grip);
+    if (window.refreshDrillingChart) window.refreshDrillingChart();
+
+    if (!recalculate) return true;
+    calculateConversion();
+    calculateAdjuster();
+    return true;
+}
+
+function isViewActive(viewId) {
+    const view = document.getElementById(viewId);
+    return !!view && view.classList.contains('active');
+}
+
+function setInputValidity(input, isValid) {
+    if (!input) return;
+    input.setAttribute('aria-invalid', isValid ? 'false' : 'true');
+}
+
+function setWarning(box, textElement, visible, messageKey) {
+    if (!box) return;
+    box.classList.toggle('hidden', !visible);
+    box.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    if (visible && textElement && messageKey) {
+        textElement.setAttribute('data-i18n', messageKey);
+        textElement.textContent = t(messageKey);
+    }
+}
+
+function clearVisualizerLayout() {
+    state.previewData = null;
+    if (!visualizer) return;
+    if (typeof visualizer.clearLayout === 'function') {
+        visualizer.clearLayout();
+        return;
+    }
+
+    [
+        'markerPin',
+        'markerPsa',
+        'markerPap',
+        'markerCog',
+        'markerOldPap',
+    ].forEach((key) => {
+        if (visualizer[key]) visualizer[key].visible = false;
+    });
+    if (Array.isArray(visualizer.lines)) {
+        visualizer.lines.forEach((line) => {
+            line.visible = false;
+        });
+    }
+}
+
+function updateVisualizerSafely(data) {
+    state.previewData = data;
+    if (!visualizer) return;
+    try {
+        visualizer.updateLayout(data);
+        ['markerPin', 'markerPsa', 'markerPap'].forEach((key) => {
+            if (visualizer[key]) visualizer[key].visible = true;
+        });
+    } catch (error) {
+        console.error('Failed to update Visualizer:', error);
+        clearVisualizerLayout();
+    }
+}
+
+function clearConverterResult(messageKey = 'warn_invalid_input') {
+    renderOutputs([]);
+    setWarning(
+        dom.converterWarning,
+        dom.converterWarningText,
+        true,
+        messageKey,
+    );
+    if (isViewActive('converter')) clearVisualizerLayout();
+}
+
+function clearAdjusterResult(messageKey = 'warn_invalid_input') {
+    if (dom.papResultBox) {
+        dom.papResultBox.classList.add('hidden');
+        dom.papResultBox.setAttribute('aria-hidden', 'true');
+    }
+    if (dom.papResultValue) dom.papResultValue.textContent = '--';
+    setWarning(dom.adjusterWarning, dom.adjusterWarningText, true, messageKey);
+    if (isViewActive('pap-adjuster')) clearVisualizerLayout();
+}
+
+function updateTabAccessibility(activeTarget) {
+    dom.tabs.forEach((tab) => {
+        const isActive = tab.dataset.target === activeTarget;
+        tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        tab.setAttribute('tabindex', isActive ? '0' : '-1');
+    });
+    dom.views.forEach((view) => {
+        view.setAttribute(
+            'aria-hidden',
+            view.id === activeTarget ? 'false' : 'true',
+        );
+    });
+}
+
+function setupAccessibility() {
+    dom.tabs.forEach((tab, index) => {
+        const target = tab.dataset.target;
+        if (!target) return;
+        tab.id = tab.id || `layout-tab-${index}`;
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('aria-controls', target);
+        const panel = document.getElementById(target);
+        if (panel) {
+            panel.setAttribute('role', 'tabpanel');
+            panel.setAttribute('aria-labelledby', tab.id);
+        }
+    });
+
+    const activeTab = Array.from(dom.tabs).find((tab) =>
+        tab.classList.contains('active'),
+    );
+    updateTabAccessibility(activeTab ? activeTab.dataset.target : 'converter');
+
+    [dom.converterWarning, dom.adjusterWarning].forEach((warning) => {
+        if (!warning) return;
+        warning.setAttribute('role', 'alert');
+        warning.setAttribute('aria-live', 'assertive');
+        warning.setAttribute('aria-atomic', 'true');
+        warning.setAttribute(
+            'aria-hidden',
+            warning.classList.contains('hidden') ? 'true' : 'false',
+        );
+    });
+
+    if (dom.targetOutputs) {
+        dom.targetOutputs.setAttribute('role', 'status');
+        dom.targetOutputs.setAttribute('aria-live', 'polite');
+        dom.targetOutputs.setAttribute('aria-atomic', 'true');
+    }
+    if (dom.papResultBox) {
+        dom.papResultBox.setAttribute('role', 'status');
+        dom.papResultBox.setAttribute('aria-live', 'polite');
+        dom.papResultBox.setAttribute('aria-atomic', 'true');
+        dom.papResultBox.setAttribute(
+            'aria-hidden',
+            dom.papResultBox.classList.contains('hidden') ? 'true' : 'false',
+        );
+    }
+}
 
 // -- Initialization --
 function init() {
@@ -150,6 +342,7 @@ function init() {
         // Bowler Settings
         handSelect: document.getElementById('hand-select'),
         gripSelect: document.getElementById('grip-select'),
+        gripModeStatus: document.getElementById('grip-mode-status'),
 
         // Converter Selects
         sourceSystemSelect: document.getElementById('source-system'),
@@ -176,41 +369,110 @@ function init() {
         // PAP Adjuster Action
         papResultBox: document.getElementById('pap-result'),
         papResultValue: document.getElementById('pap-result-value'),
+        converterWarning: document.getElementById('converter-warning'),
+        converterWarningText: document.getElementById('converter-warning-text'),
+        adjusterWarning: document.getElementById('adjuster-warning'),
+        adjusterWarningText: document.getElementById('adjuster-warning-text'),
     };
 
+    if (dom.handSelect && ['right', 'left'].includes(dom.handSelect.value)) {
+        state.common.hand = dom.handSelect.value;
+    }
+    if (
+        dom.gripSelect &&
+        ['3finger', 'thumbless'].includes(dom.gripSelect.value)
+    ) {
+        state.common.grip = dom.gripSelect.value;
+    }
+    if (dom.sourceSystemSelect && SYSTEMS[dom.sourceSystemSelect.value]) {
+        state.converter.sourceSystem = dom.sourceSystemSelect.value;
+    }
+    if (dom.targetSystemSelect && SYSTEMS[dom.targetSystemSelect.value]) {
+        state.converter.targetSystem = dom.targetSystemSelect.value;
+    }
+    if (dom.adjusterSystemSelect && SYSTEMS[dom.adjusterSystemSelect.value]) {
+        state.adjuster.system = dom.adjusterSystemSelect.value;
+    }
+
+    setupAccessibility();
     setupBowlerSettings();
     setupTabs();
     setupConverter();
+    setupTranslationActions();
     setupPapAdjuster();
+    applyGripMode(state.common.grip, { recalculate: false });
+    window.addEventListener(
+        'layoutadapter:languagechange',
+        handleLanguageChange,
+    );
+    window.addEventListener('pagehide', (event) => {
+        // Keep the live WebGL instance when the page is entering the back/forward cache.
+        if (event.persisted) return;
+        if (visualizer && typeof visualizer.dispose === 'function')
+            visualizer.dispose();
+        visualizer = null;
+    });
     renderInputs(); // Initial render converter
     renderAdjusterInputs(); // Initial render adjuster
 
     // Initial PAP sync
-    if (dom.convPapOver) state.converter.pap.over = parseFraction(dom.convPapOver.value) || 5;
-    if (dom.convPapUp) state.converter.pap.up = parseFraction(dom.convPapUp.value) || 1;
-    if (dom.oldPapOver && !dom.oldPapOver.value.trim()) dom.oldPapOver.value = '5';
+    if (dom.convPapOver) {
+        const value = parseFraction(dom.convPapOver.value, 'dist');
+        state.converter.pap.over = isValueValidForUnit(value, 'dist')
+            ? value
+            : 5;
+        dom.convPapOver.value = formatInputValueForUnit(
+            state.converter.pap.over,
+            'dist',
+        );
+        setInputValidity(dom.convPapOver, true);
+    }
+    if (dom.convPapUp) {
+        const value = parseFraction(dom.convPapUp.value, 'dist');
+        state.converter.pap.up = isPapUpValid(value) ? value : 1;
+        dom.convPapUp.value = formatInputValueForUnit(
+            state.converter.pap.up,
+            'dist',
+        );
+        setInputValidity(dom.convPapUp, true);
+    }
+    if (dom.oldPapOver && !dom.oldPapOver.value.trim())
+        dom.oldPapOver.value = '5';
     if (dom.oldPapUp && !dom.oldPapUp.value.trim()) dom.oldPapUp.value = '1';
-    if (dom.newPapOver && !dom.newPapOver.value.trim()) dom.newPapOver.value = '4 1/2';
+    if (dom.newPapOver && !dom.newPapOver.value.trim())
+        dom.newPapOver.value = '4 1/2';
     if (dom.newPapUp && !dom.newPapUp.value.trim()) dom.newPapUp.value = '1';
+    [dom.oldPapOver, dom.oldPapUp, dom.newPapOver, dom.newPapUp].forEach(
+        (input) => {
+            if (input) setInputValidity(input, true);
+        },
+    );
+    updatePapLabels(state.common.hand);
     calculateAdjuster();
 
     // Init Visualizer
     try {
-        if (typeof THREE !== 'undefined' && typeof BowlingVisualizer !== 'undefined') {
+        if (
+            typeof THREE !== 'undefined' &&
+            typeof BowlingVisualizer !== 'undefined'
+        ) {
             visualizer = new BowlingVisualizer(null);
 
             // Initial attach to converter view
-            const container = document.getElementById('vis-container-converter');
+            const container = document.getElementById(
+                'vis-container-converter',
+            );
             if (container) visualizer.attachTo(container);
 
             // Update visualizer with current settings
             if (visualizer) {
                 visualizer.setGripType(state.common.grip);
                 visualizer.setHand(state.common.hand);
+                recalculateActiveView();
             }
         }
     } catch (e) {
-        console.error("Failed to initialize Visualizer:", e);
+        console.error('Failed to initialize Visualizer:', e);
     }
 }
 
@@ -221,13 +483,13 @@ function setupBowlerSettings() {
             state.common.hand = e.target.value;
             if (visualizer) visualizer.setHand(e.target.value);
             updatePapLabels(e.target.value);
+            if (window.refreshDrillingChart) window.refreshDrillingChart();
         });
     }
 
     if (dom.gripSelect) {
         dom.gripSelect.addEventListener('change', (e) => {
-            state.common.grip = e.target.value;
-            if (visualizer) visualizer.setGripType(e.target.value);
+            applyGripMode(e.target.value);
         });
     }
 }
@@ -260,98 +522,211 @@ function updatePapLabels(hand) {
 
 // -- Tabs Logic --
 function setupTabs() {
-    dom.tabs.forEach(tab => {
+    dom.tabs.forEach((tab) => {
         tab.addEventListener('click', () => {
-            dom.tabs.forEach(t => t.classList.remove('active'));
-            dom.views.forEach(v => v.classList.remove('active'));
+            dom.tabs.forEach((t) => t.classList.remove('active'));
+            dom.views.forEach((v) => v.classList.remove('active'));
             tab.classList.add('active');
             const target = tab.dataset.target;
-            document.getElementById(target).classList.add('active');
+            const targetView = document.getElementById(target);
+            if (!targetView) return;
+            targetView.classList.add('active');
+            updateTabAccessibility(target);
 
             // Move Visualizer to active view
             if (visualizer) {
-                const containerId = target === 'converter' ? 'vis-container-converter' : 'vis-container-adjuster';
+                const containerId =
+                    'vis-container-' +
+                    (target === 'pap-adjuster' ? 'adjuster' : target);
                 const container = document.getElementById(containerId);
                 if (container) {
                     visualizer.attachTo(container);
                 }
             }
+
+            recalculateActiveView();
+        });
+
+        tab.addEventListener('keydown', (event) => {
+            if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key))
+                return;
+            event.preventDefault();
+            const tabs = Array.from(dom.tabs);
+            const currentIndex = tabs.indexOf(tab);
+            let nextIndex = currentIndex;
+            if (event.key === 'ArrowLeft')
+                nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+            if (event.key === 'ArrowRight')
+                nextIndex = (currentIndex + 1) % tabs.length;
+            if (event.key === 'Home') nextIndex = 0;
+            if (event.key === 'End') nextIndex = tabs.length - 1;
+            tabs[nextIndex].focus();
+            tabs[nextIndex].click();
         });
     });
+}
+
+function recalculateActiveView() {
+    if (isViewActive('drilling')) {
+        if (visualizer && state.previewData)
+            updateVisualizerSafely(state.previewData);
+        if (window.refreshDrillingChart) window.refreshDrillingChart();
+    } else if (isViewActive('pap-adjuster')) calculateAdjuster();
+    else calculateConversion();
+}
+
+function handleLanguageChange() {
+    updatePapLabels(state.common.hand);
+    updateGripModeStatus(state.common.grip);
+    renderInputs({ preserveValues: true });
+    renderAdjusterInputs({ preserveValues: true });
+    calculateAdjuster();
 }
 
 // -- Converter Logic --
 function setupConverter() {
     // System Selectors
     dom.sourceSystemSelect.addEventListener('change', (e) => {
+        if (!SYSTEMS[e.target.value]) return;
         state.converter.sourceSystem = e.target.value;
         renderInputs();
-        calculateConversion();
     });
 
     dom.targetSystemSelect.addEventListener('change', (e) => {
+        if (!SYSTEMS[e.target.value]) return;
         state.converter.targetSystem = e.target.value;
         calculateConversion();
     });
 
     // PAP Inputs
     dom.convPapOver.addEventListener('input', (e) => {
-        state.converter.pap.over = parseFraction(e.target.value);
+        state.converter.pap.over = parseFraction(e.target.value, 'dist');
+        setInputValidity(e.target, isPapOverValid(state.converter.pap.over));
         calculateConversion();
     });
     dom.convPapUp.addEventListener('input', (e) => {
-        state.converter.pap.up = parseFraction(e.target.value);
+        state.converter.pap.up = parseFraction(e.target.value, 'dist');
+        setInputValidity(e.target, isPapUpValid(state.converter.pap.up));
         calculateConversion();
     });
 }
 
 const TWO_LS_PRESETS = [
-    { label: "1", values: [5.5, 5, 2] },
-    { label: "2", values: [2, 6, 5] },
-    { label: "3", values: [5, 4, 3.5] },
-    { label: "4", values: [4.5, 3, 4.5] },
-    { label: "5", values: [4, 4, 5] },
-    { label: "6", values: [3.5, 4, 6.5] }
+    { label: '1', values: [5.5, 5, 2] },
+    { label: '2', values: [2, 6, 5] },
+    { label: '3', values: [5, 4, 3.5] },
+    { label: '4', values: [4.5, 3, 4.5] },
+    { label: '5', values: [4, 4, 5] },
+    { label: '6', values: [3.5, 4, 6.5] },
 ];
 
 const DEFAULT_LAYOUTS = {
     dual_angle: {
         da_drill: 45,
         da_pin: 4.5,
-        da_val: 30
+        da_val: 30,
     },
     vls: {
         vls_pin: 4.5,
         vls_psa: 5,
-        vls_buffer: 2
+        vls_buffer: 2,
     },
     '2ls': {
         '2ls_pin': 5.5,
         '2ls_psa': 5,
-        '2ls_cg': 2
-    }
+        '2ls_cg': 2,
+    },
 };
 
 function getUnitConfig(unit) {
-    if (unit === 'angle') {
-        return { min: 0, max: ANGLE_MAX, step: ANGLE_STEP };
+    if (unit === 'angle') return { min: 0, max: 90, step: 5 };
+    return { min: 0, max: unit === 'cog' ? 13.5 : DIST_MAX, step: DIST_STEP };
+}
+
+function isValueValidForUnit(value, unit) {
+    if (!Number.isFinite(value)) return false;
+    const { min, max } = getUnitConfig(unit);
+    return value >= min && value <= max;
+}
+
+function isPapOverValid(value) {
+    return isValueValidForUnit(value, 'dist');
+}
+
+function isPapUpValid(value) {
+    return Number.isFinite(value) && Math.abs(value) < DIST_MAX;
+}
+
+function isPapValid(pap) {
+    return !!pap && isPapOverValid(pap.over) && isPapUpValid(pap.up);
+}
+
+function validatePinPapPsaGeometry(pin2pap, psa2pap) {
+    if (
+        !isValueValidForUnit(pin2pap, 'dist') ||
+        !isValueValidForUnit(psa2pap, 'dist')
+    ) {
+        return false;
     }
-    return { min: 0, max: DIST_MAX, step: DIST_STEP };
+
+    // The Pin and PSA are 90 degrees (6.75" of surface distance) apart.
+    return (
+        Math.abs(pin2pap - psa2pap) <= DIST_MAX + GEOMETRY_TOLERANCE &&
+        pin2pap + psa2pap >= DIST_MAX - GEOMETRY_TOLERANCE
+    );
+}
+
+function hasValidSystemFieldValues(system, inputs) {
+    const config = SYSTEMS[system];
+    if (!config || !inputs) return false;
+
+    return config.fields.every(
+        (field) =>
+            Object.prototype.hasOwnProperty.call(inputs, field.id) &&
+            isValueValidForUnit(inputs[field.id], field.unit),
+    );
+}
+
+function isSystemInputValid(system, inputs, pap) {
+    if (!isPapValid(pap) || !hasValidSystemFieldValues(system, inputs))
+        return false;
+    const values = SYSTEMS[system].fields.map((field) => inputs[field.id]);
+    return window.LayoutMath.resolveLayout(system, values, pap).valid;
+}
+
+function resultToSystemInputs(system, result) {
+    const config = SYSTEMS[system];
+    if (!config || !result) return null;
+
+    return config.fields.reduce((values, field, index) => {
+        values[field.id] = result[`val${index + 1}`];
+        return values;
+    }, {});
+}
+
+function isSystemResultValid(system, result, pap) {
+    if (!result || result.valid === false) return false;
+    if (result.layout?.valid)
+        return [result.val1, result.val2, result.val3].every(Number.isFinite);
+    const inputs = resultToSystemInputs(system, result);
+    return inputs !== null && isSystemInputValid(system, inputs, pap);
 }
 
 function snapToStep(value, unit) {
     const { min, max, step } = getUnitConfig(unit);
     const clamped = Math.max(min, Math.min(max, value));
     const steps = Math.round((clamped - min) / step);
-    return min + (steps * step);
+    return min + steps * step;
 }
 
 function formatInputValueForUnit(value, unit) {
     if (!Number.isFinite(value)) return '';
-    if (unit === 'angle') {
-        return `${Math.round(value / ANGLE_STEP) * ANGLE_STEP}`;
-    }
-    return formatFraction(value).replace('"', '');
+    if (
+        unit !== 'angle' &&
+        Math.abs(value * 16 - Math.round(value * 16)) < 1e-9
+    )
+        return formatFraction(value).replace('"', '');
+    return String(Number(value.toFixed(10)));
 }
 
 function formatSliderValue(value, unit) {
@@ -361,7 +736,7 @@ function formatSliderValue(value, unit) {
 }
 
 function formatPlaceholderExample(value, unit) {
-    return `e.g. ${formatInputValueForUnit(value, unit)}`;
+    return `${t('example_prefix')} ${formatInputValueForUnit(value, unit)}`;
 }
 
 function findSafeRange(unit, currentValue, isValidAt) {
@@ -370,7 +745,7 @@ function findSafeRange(unit, currentValue, isValidAt) {
     const valid = new Array(stepsCount + 1).fill(false);
 
     for (let i = 0; i <= stepsCount; i++) {
-        const value = min + (i * step);
+        const value = min + i * step;
         valid[i] = !!isValidAt(value);
     }
 
@@ -392,8 +767,13 @@ function findSafeRange(unit, currentValue, isValidAt) {
         return { min, max, step };
     }
 
-    const currentIndex = Math.max(0, Math.min(stepsCount, Math.round((currentValue - min) / step)));
-    let selected = segments.find(seg => currentIndex >= seg.start && currentIndex <= seg.end);
+    const currentIndex = Math.max(
+        0,
+        Math.min(stepsCount, Math.round((currentValue - min) / step)),
+    );
+    let selected = segments.find(
+        (seg) => currentIndex >= seg.start && currentIndex <= seg.end,
+    );
 
     if (!selected) {
         selected = segments.reduce((best, seg) => {
@@ -404,17 +784,18 @@ function findSafeRange(unit, currentValue, isValidAt) {
     }
 
     return {
-        min: min + (selected.start * step),
-        max: min + (selected.end * step),
-        step
+        min: min + selected.start * step,
+        max: min + selected.end * step,
+        step,
     };
 }
 
 function createSliderBinding({
     input,
+    label,
     unit,
     getCurrentValue,
-    getRange
+    getRange,
 }) {
     const sliderWrap = document.createElement('div');
     sliderWrap.className = 'slider-wrap';
@@ -422,26 +803,46 @@ function createSliderBinding({
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.className = 'value-slider';
+    slider.id = `${input.id}-slider`;
 
     const valueLabel = document.createElement('div');
     valueLabel.className = 'slider-value';
+    valueLabel.id = `${slider.id}-value`;
+
+    if (label) {
+        label.id = label.id || `${input.id}-label`;
+        label.htmlFor = input.id;
+        slider.setAttribute('aria-labelledby', label.id);
+    }
+    slider.setAttribute('aria-describedby', valueLabel.id);
 
     sliderWrap.appendChild(slider);
     sliderWrap.appendChild(valueLabel);
     input.insertAdjacentElement('afterend', sliderWrap);
 
-    const binding = { input, slider, valueLabel, unit, getCurrentValue, getRange };
+    const binding = {
+        input,
+        slider,
+        valueLabel,
+        unit,
+        getCurrentValue,
+        getRange,
+        updatingFromSlider: false,
+    };
     sliderBindings.push(binding);
 
     slider.addEventListener('input', (e) => {
         const value = parseFloat(e.target.value);
+        binding.updatingFromSlider = true;
         input.value = formatInputValueForUnit(value, unit);
         input.dispatchEvent(new Event('input', { bubbles: true }));
+        binding.updatingFromSlider = false;
         valueLabel.textContent = formatSliderValue(value, unit);
+        slider.setAttribute('aria-valuetext', valueLabel.textContent);
     });
 
     input.addEventListener('input', () => {
-        syncSliderBinding(binding);
+        if (!binding.updatingFromSlider) syncSliderBinding(binding);
     });
 
     syncSliderBinding(binding);
@@ -450,7 +851,8 @@ function createSliderBinding({
 function syncSliderBinding(binding) {
     const { unit, slider, valueLabel, getCurrentValue, getRange } = binding;
     const cfg = getUnitConfig(unit);
-    const current = Number.isFinite(getCurrentValue()) ? getCurrentValue() : cfg.min;
+    const currentValue = getCurrentValue();
+    const current = Number.isFinite(currentValue) ? currentValue : cfg.min;
     const range = getRange ? getRange(current) : cfg;
     const expandedMin = Math.min(range.min, current);
     const expandedMax = Math.max(range.max, current);
@@ -459,13 +861,17 @@ function syncSliderBinding(binding) {
     slider.max = `${expandedMax}`;
     slider.step = `${range.step}`;
 
-    const value = Math.max(expandedMin, Math.min(expandedMax, snapToStep(current, unit)));
+    const value = Math.max(
+        expandedMin,
+        Math.min(expandedMax, snapToStep(current, unit)),
+    );
     slider.value = `${value}`;
     valueLabel.textContent = formatSliderValue(value, unit);
+    slider.setAttribute('aria-valuetext', valueLabel.textContent);
 }
 
 function refreshSliders(scope) {
-    sliderBindings.forEach(binding => {
+    sliderBindings.forEach((binding) => {
         if (!scope || binding.input.dataset.sliderScope === scope) {
             syncSliderBinding(binding);
         }
@@ -473,146 +879,21 @@ function refreshSliders(scope) {
 }
 
 function computeConverterResultForRange(src, tgt, inputs, pap) {
-    let result = { val1: 0, val2: 0, val3: 0 };
-
-    if (src === 'dual_angle') {
-        const drilling = inputs['da_drill'];
-        const pin2pap = inputs['da_pin'];
-        const val = inputs['da_val'];
-
-        if (tgt === 'dual_angle') result = { val1: drilling, val2: pin2pap, val3: val };
-        else if (tgt === 'vls') result = daToVls(drilling, pin2pap, val);
-        else if (tgt === '2ls') result = daTo2ls(drilling, pin2pap, val, pap.over, pap.up);
-    } else if (src === 'vls') {
-        const pin2pap = inputs['vls_pin'];
-        const psa2pap = inputs['vls_psa'];
-        const buffer = inputs['vls_buffer'];
-
-        if (tgt === 'vls') result = { val1: pin2pap, val2: psa2pap, val3: buffer };
-        else if (tgt === 'dual_angle') result = vlsToDa(pin2pap, psa2pap, buffer);
-        else if (tgt === '2ls') result = vlsTo2ls(pin2pap, psa2pap, buffer, pap.over, pap.up);
-    } else if (src === '2ls') {
-        const pin2pap = inputs['2ls_pin'];
-        const psa2pap = inputs['2ls_psa'];
-        const pin2cog = inputs['2ls_cg'];
-
-        if (tgt === '2ls') result = { val1: pin2pap, val2: psa2pap, val3: pin2cog };
-        else if (tgt === 'dual_angle') result = twoLsToDa(pin2pap, psa2pap, pin2cog, pap.over, pap.up);
-        else if (tgt === 'vls') result = twoLsToVls(pin2pap, psa2pap, pin2cog, pap.over, pap.up);
-    }
-
-    return result;
+    const values = SYSTEMS[src].fields.map((field) => inputs[field.id]);
+    return window.LayoutMath.translateLayout(src, tgt, values, pap);
 }
 
 function isConverterWarningFree(src, tgt, inputs, pap, result) {
-    if (!Number.isFinite(result.val1) || !Number.isFinite(result.val2) || !Number.isFinite(result.val3)) {
-        return false;
-    }
-
-    let isValid = true;
-    let inputInvalid = false;
-
-    if (src === 'dual_angle') {
-        const drill = inputs['da_drill'];
-        const pin = inputs['da_pin'];
-        const val = inputs['da_val'];
-        if (drill < 0 || drill > 90 || val < 0 || val > 90) inputInvalid = true;
-        if (pin < 0 || pin > 6.75) inputInvalid = true;
-        if (!inputInvalid) {
-            const converted = daTo2ls(drill, pin, val, pap.over, pap.up);
-            if (!validateLayoutGeometry(pin, converted.val3, pap.over, pap.up)) inputInvalid = true;
-        }
-    } else if (src === 'vls') {
-        const pin = inputs['vls_pin'];
-        const psa = inputs['vls_psa'];
-        const buffer = inputs['vls_buffer'];
-        if (pin < 0 || psa < 0 || buffer < 0) inputInvalid = true;
-        if (pin > 6.75 || psa > 6.75 || buffer > 6.75) inputInvalid = true;
-        if (buffer > pin) inputInvalid = true;
-        if (!inputInvalid) {
-            const converted = vlsTo2ls(pin, psa, buffer, pap.over, pap.up);
-            if (!validateLayoutGeometry(pin, converted.val3, pap.over, pap.up)) inputInvalid = true;
-        }
-    } else if (src === '2ls') {
-        const pin = inputs['2ls_pin'];
-        const psa = inputs['2ls_psa'];
-        const cog = inputs['2ls_cg'];
-        if (pin < 0 || psa < 0 || cog < 0) inputInvalid = true;
-        if (pin > 6.75 || psa > 6.75 || cog > 6.75) inputInvalid = true;
-        if (!inputInvalid && !validateLayoutGeometry(pin, cog, pap.over, pap.up)) inputInvalid = true;
-    }
-
-    if (isValid && tgt === 'dual_angle') {
-        if (result.val1 < 0 || result.val1 > 90 || result.val3 < 0 || result.val3 > 90) isValid = false;
-        if (result.val2 < 0 || result.val2 > 6.75) isValid = false;
-    } else if (tgt === 'vls') {
-        if (result.val1 < 0 || result.val2 < 0 || result.val3 < 0) isValid = false;
-        if (result.val1 > 6.75 || result.val2 > 6.75 || result.val3 > 6.75) isValid = false;
-        if (result.val3 > result.val1) isValid = false;
-    } else if (tgt === '2ls') {
-        if (result.val1 < 0 || result.val2 < 0 || result.val3 < 0) isValid = false;
-        if (result.val1 > 6.75 || result.val2 > 6.75 || result.val3 > 6.75) isValid = false;
-    }
-
-    if (isValid) {
-        let pin2pap;
-        let pin2cog;
-        if (src === '2ls') {
-            pin2pap = inputs['2ls_pin'];
-            pin2cog = inputs['2ls_cg'];
-        } else if (src === 'dual_angle') {
-            pin2pap = inputs['da_pin'];
-            pin2cog = daTo2ls(inputs['da_drill'], inputs['da_pin'], inputs['da_val'], pap.over, pap.up).val3;
-        } else if (src === 'vls') {
-            pin2pap = inputs['vls_pin'];
-            pin2cog = vlsTo2ls(inputs['vls_pin'], inputs['vls_psa'], inputs['vls_buffer'], pap.over, pap.up).val3;
-        }
-
-        if (pin2pap !== undefined && pin2cog !== undefined && !validateLayoutGeometry(pin2pap, pin2cog, pap.over, pap.up)) {
-            inputInvalid = true;
-        }
-    }
-
-    return !inputInvalid && isValid;
+    return (
+        isSystemInputValid(src, inputs, pap) &&
+        result &&
+        result.valid !== false &&
+        isSystemResultValid(tgt, result, pap)
+    );
 }
 
 function isAdjusterInputValid(system, inputs, papOld) {
-    const keys = Object.keys(inputs);
-    if (keys.length < 3 || keys.some(k => isNaN(inputs[k]))) return false;
-
-    if (system === 'dual_angle') {
-        const drill = inputs['da_drill'];
-        const pin = inputs['da_pin'];
-        const val = inputs['da_val'];
-        if (drill < 0 || drill > 90 || val < 0 || val > 90) return false;
-        if (pin < 0 || pin > 6.75) return false;
-
-        const converted = daTo2ls(drill, pin, val, papOld.over, papOld.up);
-        return validateLayoutGeometry(pin, converted.val3, papOld.over, papOld.up);
-    }
-
-    if (system === 'vls') {
-        const pin = inputs['vls_pin'];
-        const psa = inputs['vls_psa'];
-        const buffer = inputs['vls_buffer'];
-        if (pin < 0 || psa < 0 || buffer < 0) return false;
-        if (pin > 6.75 || psa > 6.75 || buffer > 6.75) return false;
-        if (buffer > pin) return false;
-
-        const converted = vlsTo2ls(pin, psa, buffer, papOld.over, papOld.up);
-        return validateLayoutGeometry(pin, converted.val3, papOld.over, papOld.up);
-    }
-
-    if (system === '2ls') {
-        const pin = inputs['2ls_pin'];
-        const psa = inputs['2ls_psa'];
-        const cog = inputs['2ls_cg'];
-        if (pin < 0 || psa < 0 || cog < 0) return false;
-        if (pin > 6.75 || psa > 6.75 || cog > 6.75) return false;
-        return validateLayoutGeometry(pin, cog, papOld.over, papOld.up);
-    }
-
-    return false;
+    return isSystemInputValid(system, inputs, papOld);
 }
 
 function getConverterSafeRange({ fieldId, unit, current }) {
@@ -621,7 +902,12 @@ function getConverterSafeRange({ fieldId, unit, current }) {
     const src = state.converter.sourceSystem;
     const tgt = state.converter.targetSystem;
     const keys = Object.keys(state.converter.inputs);
-    if (keys.length < 3 || keys.some(k => isNaN(state.converter.inputs[k]))) return base;
+    if (
+        keys.length < 3 ||
+        keys.some((k) => !Number.isFinite(state.converter.inputs[k])) ||
+        !isPapValid(state.converter.pap)
+    )
+        return base;
 
     const safeRange = findSafeRange(unit, current, (value) => {
         const inputs = { ...state.converter.inputs, [fieldId]: value };
@@ -637,10 +923,10 @@ function getAdjusterSafeRange({ fieldId, unit, current }) {
     const base = getUnitConfig(unit);
     if (!fieldId) return base;
     const papOld = {
-        over: parseFraction(dom.oldPapOver ? dom.oldPapOver.value : 0),
-        up: parseFraction(dom.oldPapUp ? dom.oldPapUp.value : 0)
+        over: parseFraction(dom.oldPapOver ? dom.oldPapOver.value : '', 'dist'),
+        up: parseFraction(dom.oldPapUp ? dom.oldPapUp.value : '', 'dist'),
     };
-    if (isNaN(papOld.over) || isNaN(papOld.up)) return base;
+    if (!isPapValid(papOld)) return base;
 
     const safeRange = findSafeRange(unit, current, (value) => {
         const inputs = { ...state.adjuster.inputs, [fieldId]: value };
@@ -650,13 +936,24 @@ function getAdjusterSafeRange({ fieldId, unit, current }) {
     return safeRange;
 }
 
-function renderInputs() {
+function renderInputs({ preserveValues = false } = {}) {
     const systemKey = state.converter.sourceSystem;
     const fields = SYSTEMS[systemKey].fields;
     const defaults = DEFAULT_LAYOUTS[systemKey] || {};
+    const previousValues = { ...state.converter.inputs };
+    const previousPresetValue = preserveValues
+        ? document.getElementById('2ls-preset-select')?.value || ''
+        : '';
+    const previousTextValues = fields.reduce((values, field) => {
+        const existingInput = document.getElementById(`input-${field.id}`);
+        if (existingInput) values[field.id] = existingInput.value;
+        return values;
+    }, {});
 
     dom.sourceInputs.innerHTML = '';
-    sliderBindings = sliderBindings.filter(binding => binding.input.dataset.sliderScope !== 'converter-input');
+    sliderBindings = sliderBindings.filter(
+        (binding) => binding.input.dataset.sliderScope !== 'converter-input',
+    );
     state.converter.inputs = {};
 
     // Inject 2LS Presets if applicable
@@ -669,24 +966,29 @@ function renderInputs() {
         label.textContent = t('preset_label');
 
         const select = document.createElement('select');
-        select.id = "2ls-preset-select";
+        select.id = '2ls-preset-select';
+        label.htmlFor = select.id;
         select.innerHTML = `<option value="">${t('preset_custom')}</option>`;
         TWO_LS_PRESETS.forEach((p, i) => {
-            select.innerHTML += `<option value="${i}">${p.label}</option>`;
+            select.innerHTML += `<option value="${i}">${p.label} · ${p.values.map((v) => formatFraction(v)).join(' × ')}</option>`;
         });
+        if (previousPresetValue) select.value = previousPresetValue;
 
         select.addEventListener('change', (e) => {
             const idx = e.target.value;
-            if (idx !== "") {
+            if (idx !== '') {
                 const vals = TWO_LS_PRESETS[idx].values;
                 // Update input element values
                 const pinInput = document.getElementById('input-2ls_pin');
                 const psaInput = document.getElementById('input-2ls_psa');
                 const cgInput = document.getElementById('input-2ls_cg');
 
-                if (pinInput) pinInput.value = formatFraction(vals[0]).replace('"', '');
-                if (psaInput) psaInput.value = formatFraction(vals[1]).replace('"', '');
-                if (cgInput) cgInput.value = formatFraction(vals[2]).replace('"', '');
+                if (pinInput)
+                    pinInput.value = formatFraction(vals[0]).replace('"', '');
+                if (psaInput)
+                    psaInput.value = formatFraction(vals[1]).replace('"', '');
+                if (cgInput)
+                    cgInput.value = formatFraction(vals[2]).replace('"', '');
 
                 // Update state
                 state.converter.inputs['2ls_pin'] = vals[0];
@@ -702,7 +1004,7 @@ function renderInputs() {
         dom.sourceInputs.appendChild(presetWrapper);
     }
 
-    fields.forEach(field => {
+    fields.forEach((field) => {
         const wrapper = document.createElement('div');
         wrapper.className = 'field';
 
@@ -715,18 +1017,42 @@ function renderInputs() {
         input.dataset.sliderScope = 'converter-input';
 
         input.id = `input-${field.id}`;
+        label.id = `${input.id}-label`;
+        label.htmlFor = input.id;
 
         // Initialize with sample layout so visualization starts in valid state.
         const defaultValue = defaults[field.id] ?? 0;
-        state.converter.inputs[field.id] = defaultValue;
+        const hasPreviousValue =
+            preserveValues &&
+            Object.prototype.hasOwnProperty.call(previousValues, field.id);
+        const currentValue = hasPreviousValue
+            ? previousValues[field.id]
+            : defaultValue;
+        state.converter.inputs[field.id] = currentValue;
         input.placeholder = formatPlaceholderExample(defaultValue, field.unit);
-        input.value = '';
+        input.value =
+            preserveValues &&
+            Object.prototype.hasOwnProperty.call(previousTextValues, field.id)
+                ? previousTextValues[field.id]
+                : formatInputValueForUnit(currentValue, field.unit);
+        setInputValidity(input, isValueValidForUnit(currentValue, field.unit));
 
         input.addEventListener('input', (e) => {
-            state.converter.inputs[field.id] = parseFraction(e.target.value);
+            state.converter.inputs[field.id] = parseFraction(
+                e.target.value,
+                field.unit,
+            );
+            setInputValidity(
+                e.target,
+                isValueValidForUnit(
+                    state.converter.inputs[field.id],
+                    field.unit,
+                ),
+            );
             // If user types manually, deselect preset dropdown
             const presetSelect = document.getElementById('2ls-preset-select');
-            if (presetSelect && presetSelect.value !== "") presetSelect.value = "";
+            if (presetSelect && presetSelect.value !== '')
+                presetSelect.value = '';
             calculateConversion();
         });
 
@@ -734,9 +1060,15 @@ function renderInputs() {
         wrapper.appendChild(input);
         createSliderBinding({
             input,
+            label,
             unit: field.unit,
             getCurrentValue: () => state.converter.inputs[field.id],
-            getRange: (current) => getConverterSafeRange({ fieldId: field.id, unit: field.unit, current })
+            getRange: (current) =>
+                getConverterSafeRange({
+                    fieldId: field.id,
+                    unit: field.unit,
+                    current,
+                }),
         });
         dom.sourceInputs.appendChild(wrapper);
     });
@@ -747,13 +1079,24 @@ function renderInputs() {
 
 // -- PAP ADJUSTER LOGIC --
 
-function renderAdjusterInputs() {
+function renderAdjusterInputs({ preserveValues = false } = {}) {
     const systemKey = state.adjuster.system;
     const fields = SYSTEMS[systemKey].fields;
     const defaults = DEFAULT_LAYOUTS[systemKey] || {};
+    const previousValues = { ...state.adjuster.inputs };
+    const previousPresetValue = preserveValues
+        ? document.getElementById('adj-2ls-preset-select')?.value || ''
+        : '';
+    const previousTextValues = fields.reduce((values, field) => {
+        const existingInput = document.getElementById(`adj-input-${field.id}`);
+        if (existingInput) values[field.id] = existingInput.value;
+        return values;
+    }, {});
 
     dom.adjusterInputs.innerHTML = '';
-    sliderBindings = sliderBindings.filter(binding => binding.input.dataset.sliderScope !== 'adjuster-input');
+    sliderBindings = sliderBindings.filter(
+        (binding) => binding.input.dataset.sliderScope !== 'adjuster-input',
+    );
     state.adjuster.inputs = {};
 
     // Inject 2LS Presets for Adjuster if applicable
@@ -766,24 +1109,29 @@ function renderAdjusterInputs() {
         label.textContent = t('preset_label');
 
         const select = document.createElement('select');
-        select.id = "adj-2ls-preset-select";
+        select.id = 'adj-2ls-preset-select';
+        label.htmlFor = select.id;
         select.innerHTML = `<option value="">${t('preset_custom')}</option>`;
         TWO_LS_PRESETS.forEach((p, i) => {
-            select.innerHTML += `<option value="${i}">${p.label}</option>`;
+            select.innerHTML += `<option value="${i}">${p.label} · ${p.values.map((v) => formatFraction(v)).join(' × ')}</option>`;
         });
+        if (previousPresetValue) select.value = previousPresetValue;
 
         select.addEventListener('change', (e) => {
             const idx = e.target.value;
-            if (idx !== "") {
+            if (idx !== '') {
                 const vals = TWO_LS_PRESETS[idx].values;
                 // Update input element values
                 const pinInput = document.getElementById('adj-input-2ls_pin');
                 const psaInput = document.getElementById('adj-input-2ls_psa');
                 const cgInput = document.getElementById('adj-input-2ls_cg');
 
-                if (pinInput) pinInput.value = formatFraction(vals[0]).replace('"', '');
-                if (psaInput) psaInput.value = formatFraction(vals[1]).replace('"', '');
-                if (cgInput) cgInput.value = formatFraction(vals[2]).replace('"', '');
+                if (pinInput)
+                    pinInput.value = formatFraction(vals[0]).replace('"', '');
+                if (psaInput)
+                    psaInput.value = formatFraction(vals[1]).replace('"', '');
+                if (cgInput)
+                    cgInput.value = formatFraction(vals[2]).replace('"', '');
 
                 // Update state
                 state.adjuster.inputs['2ls_pin'] = vals[0];
@@ -799,7 +1147,7 @@ function renderAdjusterInputs() {
         dom.adjusterInputs.appendChild(presetWrapper);
     }
 
-    fields.forEach(field => {
+    fields.forEach((field) => {
         const wrapper = document.createElement('div');
         wrapper.className = 'field';
 
@@ -810,28 +1158,61 @@ function renderAdjusterInputs() {
         input.type = 'text';
         input.id = `adj-input-${field.id}`;
         input.dataset.sliderScope = 'adjuster-input';
+        input.inputMode = field.unit === 'angle' ? 'numeric' : 'text';
+        label.id = `${input.id}-label`;
+        label.htmlFor = input.id;
 
         input.addEventListener('input', (e) => {
-            state.adjuster.inputs[field.id] = parseFraction(e.target.value);
+            state.adjuster.inputs[field.id] = parseFraction(
+                e.target.value,
+                field.unit,
+            );
+            setInputValidity(
+                e.target,
+                isValueValidForUnit(
+                    state.adjuster.inputs[field.id],
+                    field.unit,
+                ),
+            );
             // If user types manually, deselect preset dropdown
-            const presetSelect = document.getElementById('adj-2ls-preset-select');
-            if (presetSelect && presetSelect.value !== "") presetSelect.value = "";
+            const presetSelect = document.getElementById(
+                'adj-2ls-preset-select',
+            );
+            if (presetSelect && presetSelect.value !== '')
+                presetSelect.value = '';
 
             calculateAdjuster(); // Auto calc
         });
 
         const defaultValue = defaults[field.id] ?? 0;
-        state.adjuster.inputs[field.id] = defaultValue;
+        const hasPreviousValue =
+            preserveValues &&
+            Object.prototype.hasOwnProperty.call(previousValues, field.id);
+        const currentValue = hasPreviousValue
+            ? previousValues[field.id]
+            : defaultValue;
+        state.adjuster.inputs[field.id] = currentValue;
         input.placeholder = formatPlaceholderExample(defaultValue, field.unit);
-        input.value = '';
+        input.value =
+            preserveValues &&
+            Object.prototype.hasOwnProperty.call(previousTextValues, field.id)
+                ? previousTextValues[field.id]
+                : formatInputValueForUnit(currentValue, field.unit);
+        setInputValidity(input, isValueValidForUnit(currentValue, field.unit));
 
         wrapper.appendChild(label);
         wrapper.appendChild(input);
         createSliderBinding({
             input,
+            label,
             unit: field.unit,
             getCurrentValue: () => state.adjuster.inputs[field.id],
-            getRange: (current) => getAdjusterSafeRange({ fieldId: field.id, unit: field.unit, current })
+            getRange: (current) =>
+                getAdjusterSafeRange({
+                    fieldId: field.id,
+                    unit: field.unit,
+                    current,
+                }),
         });
         dom.adjusterInputs.appendChild(wrapper);
     });
@@ -839,9 +1220,11 @@ function renderAdjusterInputs() {
 
 function setupPapAdjuster() {
     dom.adjusterSystemSelect.addEventListener('change', (e) => {
+        if (!SYSTEMS[e.target.value]) return;
         state.adjuster.system = e.target.value;
         renderAdjusterInputs();
         dom.papResultBox.classList.add('hidden');
+        dom.papResultBox.setAttribute('aria-hidden', 'true');
         calculateAdjuster(); // Try calc if all inputs are somehow ready or just to clear
     });
 
@@ -853,359 +1236,140 @@ function setupPapAdjuster() {
 
 function calculateAdjuster() {
     const papOld = {
-        over: parseFraction(dom.oldPapOver.value),
-        up: parseFraction(dom.oldPapUp.value)
+        over: parseFraction(dom.oldPapOver.value, 'dist'),
+        up: parseFraction(dom.oldPapUp.value, 'dist'),
     };
     const papNew = {
-        over: parseFraction(dom.newPapOver.value),
-        up: parseFraction(dom.newPapUp.value)
+        over: parseFraction(dom.newPapOver.value, 'dist'),
+        up: parseFraction(dom.newPapUp.value, 'dist'),
     };
-
-    // Validate PAPs
-    if (isNaN(papOld.over) || isNaN(papOld.up) || isNaN(papNew.over) || isNaN(papNew.up)) return;
-
+    [
+        [dom.oldPapOver, isPapOverValid(papOld.over)],
+        [dom.oldPapUp, isPapUpValid(papOld.up)],
+        [dom.newPapOver, isPapOverValid(papNew.over)],
+        [dom.newPapUp, isPapUpValid(papNew.up)],
+    ].forEach(([el, valid]) => setInputValidity(el, valid));
+    updateSystemHelp();
     const system = state.adjuster.system;
-    const inputs = state.adjuster.inputs;
-    const keys = Object.keys(inputs);
-
-    // Validate Layout Inputs (at least 3 values needed)
-    if (keys.length < 3) return;
-    if (keys.some(k => isNaN(inputs[k]))) return;
-
-    // 1. Convert to Dual Angle
-    let daOld = { drill: 0, pin: 0, val: 0 };
-
-    if (system === 'dual_angle') {
-        daOld = {
-            drill: inputs['da_drill'],
-            pin: inputs['da_pin'],
-            val: inputs['da_val']
-        };
-    } else if (system === 'vls') {
-        const vlsDA = vlsToDa(
-            inputs['vls_pin'],
-            inputs['vls_psa'],
-            inputs['vls_buffer']
-        );
-        daOld = {
-            drill: vlsDA.val1,
-            pin: vlsDA.val2,
-            val: vlsDA.val3
-        };
-    } else if (system === '2ls') {
-        const twoLsDA = twoLsToDa(
-            inputs['2ls_pin'],
-            inputs['2ls_psa'],
-            inputs['2ls_cg'],
-            papOld.over,
-            papOld.up
-        );
-        daOld = {
-            drill: twoLsDA.val1,
-            pin: twoLsDA.val2,
-            val: twoLsDA.val3
-        };
+    const values = SYSTEMS[system].fields.map(
+        (field) => state.adjuster.inputs[field.id],
+    );
+    const old = window.LayoutMath.resolveLayout(system, values, papOld);
+    state.adjuster.resultText = '';
+    const copy = document.getElementById('copy-pap-result');
+    if (copy) copy.disabled = true;
+    if (!old.valid || !isPapValid(papNew)) {
+        clearAdjusterResult();
+        refreshSliders('adjuster-input');
+        return;
     }
-
-    // 2. Calculate New Layout in terms of Dual Angle
-    const resultDA = calculatePapAdjustment(papOld, daOld, papNew);
-    const drillSigned = Number.isFinite(resultDA.drillSigned) ? resultDA.drillSigned : resultDA.drill;
-
-    // 3. Convert Result back to Original System (using New PAP)
-    let finalResult = { v1: 0, v2: 0, v3: 0 };
-
-    if (system === 'dual_angle') {
-        finalResult = { v1: drillSigned, v2: resultDA.pin, v3: resultDA.val };
-    } else if (system === 'vls') {
-        const res = daToVls(resultDA.drill, resultDA.pin, resultDA.val);
-        finalResult = { v1: res.val1, v2: res.val2, v3: res.val3 };
-    } else if (system === '2ls') {
-        const res = daTo2ls(resultDA.drill, resultDA.pin, resultDA.val, papNew.over, papNew.up);
-        finalResult = { v1: res.val1, v2: res.val2, v3: res.val3 };
+    const adjusted = calculatePapAdjustment(papOld, old, papNew);
+    if (!adjusted.valid) {
+        clearAdjusterResult();
+        refreshSliders('adjuster-input');
+        return;
     }
-
+    const layout = {
+        valid: true,
+        drill: adjusted.drillSigned,
+        pin: adjusted.pin,
+        val: adjusted.valSigned,
+        conventional: adjusted.orientationConventional,
+    };
+    const result = window.LayoutMath.translateResolved(layout, system, papNew);
+    const fallback = !result.valid;
+    const text = fallback
+        ? t('standard_unavailable')
+        : formatLayoutText(system, [result.val1, result.val2, result.val3]);
+    state.adjuster.resultText = text;
+    dom.papResultValue.textContent = state.adjuster.resultText;
     dom.papResultBox.classList.remove('hidden');
-
-    // Format result based on system fields
-    const r1 = finalResult.v1;
-    const r2 = finalResult.v2;
-    const r3 = finalResult.v3;
-
-    let displayString = "";
-
-    if (system === 'dual_angle') {
-        displayString = `${formatAngle(r1)} x ${formatFraction(r2)} x ${formatAngle(r3)}`;
-    } else if (system === 'vls') {
-        displayString = `${formatFraction(r1)} x ${formatFraction(r2)} x ${formatFraction(r3)}`;
-    } else if (system === '2ls') {
-        displayString = `${formatFraction(r1)} x ${formatFraction(r2)} x ${formatFraction(r3)}`;
-    }
-
-    dom.papResultValue.textContent = displayString;
-
-    // Validate adjusted result
-    const adjusterWarning = document.getElementById('adjuster-warning');
-    if (adjusterWarning) {
-        let isValid = true;
-
-        if (system === 'dual_angle') {
-            if (r1 < 0 || r1 > 90 || r3 < 0 || r3 > 90) {
-                console.log(`Adjuster validation failed: angle out of range`);
-                isValid = false;
-            }
-            if (r2 < 0 || r2 > 6.75) {
-                console.log(`Adjuster validation failed: pin2pap out of range`);
-                isValid = false;
-            }
-        } else if (system === 'vls' || system === '2ls') {
-            if (r1 < 0 || r2 < 0 || r3 < 0) {
-                console.log(`Adjuster validation failed: negative values`);
-                isValid = false;
-            }
-            if (r1 > 6.75 || r2 > 6.75 || r3 > 6.75) {
-                console.log(`Adjuster validation failed: values too large`);
-                isValid = false;
-            }
-        }
-
-        adjusterWarning.classList.toggle('hidden', isValid);
-    }
-
-    // Update Visualizer with Adjusted Result
-    if (visualizer && dom.papResultBox.classList.contains('hidden') === false) {
-        visualizer.updateLayout({
-            system: system,
-            p1: r1, p2: r2, p3: r3,
+    dom.papResultBox.setAttribute('aria-hidden', 'false');
+    if (copy) copy.disabled = fallback;
+    setWarning(
+        dom.adjusterWarning,
+        dom.adjusterWarningText,
+        fallback,
+        'warn_orientation_loss',
+    );
+    if (isViewActive('pap-adjuster'))
+        updateVisualizerSafely({
+            system: 'dual_angle',
+            p1: layout.drill,
+            p2: layout.pin,
+            p3: layout.val,
             pap: papNew,
-            oldPap: papOld,  // Pass old PAP for visualization
-            drillSigned: drillSigned
+            oldPap: papOld,
         });
-    }
-
     refreshSliders('adjuster-input');
 }
 
 // -- CORE CONVERSION LOGIC --
 
 function calculateConversion() {
-    const src = state.converter.sourceSystem;
-    const tgt = state.converter.targetSystem;
-    const inputs = state.converter.inputs;
-    const pap = state.converter.pap;
-
-    const keys = Object.keys(inputs);
-    if (keys.length < 3) return;
-    if (keys.some(k => isNaN(inputs[k]))) return;
-
-    let result = { val1: 0, val2: 0, val3: 0 };
-
-    if (src === 'dual_angle') {
-        const drilling = inputs['da_drill'];
-        const pin2pap = inputs['da_pin'];
-        const val = inputs['da_val'];
-
-        if (tgt === 'dual_angle') {
-            result = { val1: drilling, val2: pin2pap, val3: val };
-        } else if (tgt === 'vls') {
-            result = daToVls(drilling, pin2pap, val);
-        } else if (tgt === '2ls') {
-            result = daTo2ls(drilling, pin2pap, val, pap.over, pap.up);
-        }
+    const {
+        sourceSystem: src,
+        targetSystem: tgt,
+        inputs,
+        pap,
+    } = state.converter;
+    updateSystemHelp();
+    SYSTEMS[src].fields.forEach((field) =>
+        setInputValidity(
+            document.getElementById('input-' + field.id),
+            isValueValidForUnit(inputs[field.id], field.unit),
+        ),
+    );
+    const copy = document.getElementById('copy-result');
+    const swap = document.getElementById('swap-systems');
+    const status = document.getElementById('conversion-status');
+    state.converter.lastResult = null;
+    if (copy) copy.disabled = true;
+    if (swap) swap.disabled = true;
+    if (status) status.textContent = '';
+    if (!isSystemInputValid(src, inputs, pap)) {
+        clearConverterResult();
+        refreshSliders('converter-input');
+        return;
     }
-    else if (src === 'vls') {
-        const pin2pap = inputs['vls_pin'];
-        const psa2pap = inputs['vls_psa'];
-        const buffer = inputs['vls_buffer'];
-
-        if (tgt === 'vls') {
-            result = { val1: pin2pap, val2: psa2pap, val3: buffer };
-        } else if (tgt === 'dual_angle') {
-            result = vlsToDa(pin2pap, psa2pap, buffer);
-        } else if (tgt === '2ls') {
-            result = vlsTo2ls(pin2pap, psa2pap, buffer, pap.over, pap.up);
-        }
+    const result = computeConverterResultForRange(src, tgt, inputs, pap);
+    const layout = result.layout;
+    if (!result.valid && !result.layout?.valid) {
+        clearConverterResult();
+        refreshSliders('converter-input');
+        return;
     }
-    else if (src === '2ls') {
-        const pin2pap = inputs['2ls_pin'];
-        const psa2pap = inputs['2ls_psa'];
-        const pin2cog = inputs['2ls_cg'];
-
-        if (tgt === '2ls') {
-            result = { val1: pin2pap, val2: psa2pap, val3: pin2cog };
-        } else if (tgt === 'dual_angle') {
-            result = twoLsToDa(pin2pap, psa2pap, pin2cog, pap.over, pap.up);
-        } else if (tgt === 'vls') {
-            result = twoLsToVls(pin2pap, psa2pap, pin2cog, pap.over, pap.up);
-        }
+    state.converter.lastResult = result;
+    if (copy) copy.disabled = !result.valid;
+    if (swap) swap.disabled = !result.valid;
+    if (!result.valid) {
+        dom.targetOutputs.innerHTML = '';
+        const fallback = document.createElement('div');
+        fallback.className = 'fallback-result';
+        const label = document.createElement('span');
+        label.className = 'fallback-label';
+        label.textContent = t('standard_unavailable');
+        fallback.appendChild(label);
+        dom.targetOutputs.appendChild(fallback);
+        setWarning(
+            dom.converterWarning,
+            dom.converterWarningText,
+            true,
+            'warn_orientation_loss',
+        );
+    } else {
+        renderOutputs([result.val1, result.val2, result.val3]);
+        setWarning(dom.converterWarning, dom.converterWarningText, false);
+        if (status) status.textContent = t('result_ready');
     }
-
-    renderOutputs([result.val1, result.val2, result.val3]);
-
-    // Validate layout geometry - for any system, check if values are realistic
-    const warningBox = document.getElementById('converter-warning');
-    if (warningBox) {
-        let isValid = true;
-        let inputInvalid = false;  // Track if input values are invalid
-        // Validate INPUT values based on source system
-        if (src === 'dual_angle') {
-            const drill = inputs['da_drill'];
-            const pin = inputs['da_pin'];
-            const val = inputs['da_val'];
-            if (drill < 0 || drill > 90 || val < 0 || val > 90) {
-                console.log(`Input validation failed: angle out of range (drill=${drill}, val=${val})`);
-                inputInvalid = true;
-            }
-            if (pin < 0 || pin > 6.75) {
-                console.log(`Input validation failed: pin2pap=${pin} out of range`);
-                inputInvalid = true;
-            }
-            // Convert to 2LS to check triangle inequality
-            if (!inputInvalid) {
-                const converted = daTo2ls(drill, pin, val, pap.over, pap.up);
-                if (!validateLayoutGeometry(pin, converted.val3, pap.over, pap.up)) {
-                    console.log(`Input validation failed: DA converts to invalid 2LS geometry`);
-                    inputInvalid = true;
-                }
-            }
-        } else if (src === 'vls') {
-            const pin = inputs['vls_pin'];
-            const psa = inputs['vls_psa'];
-            const buffer = inputs['vls_buffer'];
-            if (pin < 0 || psa < 0 || buffer < 0) {
-                console.log(`Input validation failed: negative VLS values`);
-                inputInvalid = true;
-            }
-            if (pin > 6.75 || psa > 6.75 || buffer > 6.75) {
-                console.log(`Input validation failed: VLS values too large`);
-                inputInvalid = true;
-            }
-            // VLS geometric constraint: buffer cannot exceed pin to PAP
-            if (buffer > pin) {
-                console.log(`Input validation failed: buffer(${buffer}) > pin(${pin}) is geometrically impossible`);
-                inputInvalid = true;
-            }
-            // Note: PSA to PAP CAN be greater than Pin to PAP (e.g., drilling angle > 60°)
-            // Convert to 2LS to check triangle inequality
-            if (!inputInvalid) {
-                const converted = vlsTo2ls(pin, psa, buffer, pap.over, pap.up);
-                if (!validateLayoutGeometry(pin, converted.val3, pap.over, pap.up)) {
-                    console.log(`Input validation failed: VLS converts to invalid 2LS geometry`);
-                    inputInvalid = true;
-                }
-            }
-        } else if (src === '2ls') {
-            const pin = inputs['2ls_pin'];
-            const psa = inputs['2ls_psa'];
-            const cog = inputs['2ls_cg'];
-            if (pin < 0 || psa < 0 || cog < 0) {
-                console.log(`Input validation failed: negative 2LS values`);
-                inputInvalid = true;
-            }
-            if (pin > 6.75 || psa > 6.75 || cog > 6.75) {
-                console.log(`Input validation failed: 2LS values too large`);
-                inputInvalid = true;
-            }
-            // Note: PSA to PAP CAN be greater than Pin to PAP (e.g., drilling angle > 60°)
-            // Triangle inequality for Pin-PAP-Grip triangle
-            if (!inputInvalid && !validateLayoutGeometry(pin, cog, pap.over, pap.up)) {
-                console.log(`Input validation failed: pin to cog violates triangle inequality`);
-                inputInvalid = true;
-            }
-        }
-
-        // Validate RESULT values based on target system
-        if (isValid && tgt === 'dual_angle') {
-            // Drilling angle and VAL angle should be 0-90
-            if (result.val1 < 0 || result.val1 > 90 || result.val3 < 0 || result.val3 > 90) {
-                console.log(`Validation failed: angle out of range (drill=${result.val1}, val=${result.val3})`);
-                isValid = false;
-            }
-            // Pin to PAP should be positive
-            if (result.val2 < 0 || result.val2 > 6.75) {
-                console.log(`Validation failed: pin2pap=${result.val2} out of range`);
-                isValid = false;
-            }
-        } else if (tgt === 'vls') {
-            // All distances should be non-negative and reasonable
-            if (result.val1 < 0 || result.val2 < 0 || result.val3 < 0) {
-                console.log(`Validation failed: negative VLS values (pin=${result.val1}, psa=${result.val2}, buffer=${result.val3})`);
-                isValid = false;
-            }
-            if (result.val1 > 6.75 || result.val2 > 6.75 || result.val3 > 6.75) {
-                console.log(`Validation failed: VLS values too large`);
-                isValid = false;
-            }
-            // VLS geometric constraints
-            if (result.val3 > result.val1) {
-                console.log(`Validation failed: buffer(${result.val3}) > pin(${result.val1})`);
-                isValid = false;
-            }
-            // Note: PSA to PAP CAN be greater than Pin to PAP (e.g., drilling angle > 60°)
-        } else if (tgt === '2ls') {
-            // All distances should be non-negative
-            if (result.val1 < 0 || result.val2 < 0 || result.val3 < 0) {
-                console.log(`Validation failed: negative 2LS values (pin=${result.val1}, psa=${result.val2}, cog=${result.val3})`);
-                isValid = false;
-            }
-            if (result.val1 > 6.75 || result.val2 > 6.75 || result.val3 > 6.75) {
-                console.log(`Validation failed: 2LS values too large`);
-                isValid = false;
-            }
-        }
-
-        // Also validate triangle inequality using 2LS values
-        if (isValid) {
-            let pin2pap, pin2cog;
-            if (src === '2ls') {
-                pin2pap = inputs['2ls_pin'];
-                pin2cog = inputs['2ls_cg'];
-            } else if (src === 'dual_angle') {
-                pin2pap = inputs['da_pin'];
-                const converted = daTo2ls(inputs['da_drill'], inputs['da_pin'], inputs['da_val'], pap.over, pap.up);
-                pin2cog = converted.val3;
-            } else if (src === 'vls') {
-                pin2pap = inputs['vls_pin'];
-                const converted = vlsTo2ls(inputs['vls_pin'], inputs['vls_psa'], inputs['vls_buffer'], pap.over, pap.up);
-                pin2cog = converted.val3;
-            }
-
-            if (pin2pap !== undefined && pin2cog !== undefined) {
-                if (!validateLayoutGeometry(pin2pap, pin2cog, pap.over, pap.up)) {
-                    inputInvalid = true;
-                }
-            }
-        }
-
-        // Update warning visibility and text
-        const warningText = document.getElementById('converter-warning-text');
-        if (inputInvalid) {
-            warningBox.classList.remove('hidden');
-            if (warningText) {
-                warningText.setAttribute('data-i18n', 'warn_invalid_input');
-                warningText.textContent = t('warn_invalid_input');
-            }
-        } else if (!isValid) {
-            warningBox.classList.remove('hidden');
-            if (warningText) {
-                warningText.setAttribute('data-i18n', 'warn_unusual_output');
-                warningText.textContent = t('warn_unusual_output');
-            }
-        } else {
-            warningBox.classList.add('hidden');
-        }
-    }
-
-    // Update Visualizer
-    if (visualizer) {
-        visualizer.updateLayout({
-            system: tgt,
-            p1: result.val1,
-            p2: result.val2,
-            p3: result.val3,
-            pap: pap
+    if (isViewActive('converter'))
+        updateVisualizerSafely({
+            system: 'dual_angle',
+            p1: layout.drill,
+            p2: layout.pin,
+            p3: layout.val,
+            pap,
         });
-    }
-
     refreshSliders('converter-input');
 }
 
@@ -1219,38 +1383,28 @@ function calculateConversion() {
  * @returns true if valid, false if suspicious
  */
 function validateLayoutGeometry(pin2pap, pin2cog, papOver, papUp) {
-    const maxDistance = 6.75; // Half circumference = 13.5/2
-
-    // Check for NaN or obviously invalid values
-    if (isNaN(pin2pap) || isNaN(pin2cog)) {
-        console.log('Validation failed: NaN values');
+    if (
+        !isPapValid({ over: papOver, up: papUp }) ||
+        !isValueValidForUnit(pin2pap, 'dist') ||
+        !isValueValidForUnit(pin2cog, 'dist')
+    )
         return false;
-    }
-
-    // Check distance bounds
-    if (pin2pap < 0 || pin2pap > maxDistance) {
-        console.log(`Validation failed: pin2pap=${pin2pap} out of range [0, ${maxDistance}]`);
-        return false;
-    }
-    if (pin2cog < 0 || pin2cog > maxDistance) {
-        console.log(`Validation failed: pin2cog=${pin2cog} out of range [0, ${maxDistance}]`);
-        return false;
-    }
 
     // Triangle inequality check
-    const papOverRad = radFromInch(papOver || 0);
-    const papUpRad = radFromInch(papUp || 0);
+    const papOverRad = radFromInch(papOver);
+    const papUpRad = radFromInch(papUp);
     const cosDist = cos(papOverRad) * cos(papUpRad);
     const pap2grip = inchFromRad(acos(Math.max(-1, Math.min(1, cosDist))));
+    if (!Number.isFinite(pap2grip)) return false;
 
     const minPinCog = abs(pin2pap - pap2grip);
-    const maxPinCog = Math.min(pin2pap + pap2grip, maxDistance);
+    const maxPinCog = Math.min(pin2pap + pap2grip, DIST_MAX);
 
-    const tolerance = 0.05;
-    if (pin2cog < minPinCog - tolerance || pin2cog > maxPinCog + tolerance) {
-        console.log(`Validation failed: pin2cog=${pin2cog} not in valid range [${minPinCog.toFixed(2)}, ${maxPinCog.toFixed(2)}]`);
+    if (
+        pin2cog < minPinCog - GEOMETRY_TOLERANCE ||
+        pin2cog > maxPinCog + GEOMETRY_TOLERANCE
+    )
         return false;
-    }
 
     return true;
 }
@@ -1266,12 +1420,14 @@ function renderOutputs(results) {
 
         const label = document.createElement('label');
         label.textContent = t(field.labelKey);
+        label.id = `output-${field.id}-label`;
 
         const display = document.createElement('div');
         display.className = 'read-only-field';
+        display.setAttribute('aria-labelledby', label.id);
 
         // FORMATTING LOGIC APPLIED HERE
-        let formattedValue = "--";
+        let formattedValue = '--';
         const val = results[index];
 
         if (val !== undefined && val !== null) {
@@ -1288,6 +1444,93 @@ function renderOutputs(results) {
         wrapper.appendChild(display);
         dom.targetOutputs.appendChild(wrapper);
     });
+}
+
+function formatLayoutText(system, values) {
+    return values
+        .map((value, i) =>
+            system === 'dual_angle' && i !== 1
+                ? formatAngle(value)
+                : formatFraction(value),
+        )
+        .join(' × ');
+}
+function updateSystemHelp() {
+    [
+        ['source-help', state.converter.sourceSystem],
+        ['target-help', state.converter.targetSystem],
+        ['adjuster-help', state.adjuster.system],
+    ].forEach(([id, system]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = t('help_' + system);
+    });
+}
+let toastTimer;
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (toast.hidden = true), 3500);
+}
+async function copyText(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        showToast(t('copied'));
+    } catch {
+        showToast(t('copy_failed'));
+    }
+}
+function setupTranslationActions() {
+    document.getElementById('swap-systems')?.addEventListener('click', () => {
+        const result = state.converter.lastResult;
+        if (!result?.valid) return;
+        const nextSource = state.converter.targetSystem,
+            nextTarget = state.converter.sourceSystem;
+        state.converter.sourceSystem = nextSource;
+        state.converter.targetSystem = nextTarget;
+        dom.sourceSystemSelect.value = nextSource;
+        dom.targetSystemSelect.value = nextTarget;
+        state.converter.inputs = resultToSystemInputs(nextSource, result);
+        // Remove obsolete text so the exact computed numbers populate the new controls.
+        dom.sourceInputs.innerHTML = '';
+        renderInputs({ preserveValues: true });
+    });
+    document.getElementById('copy-result')?.addEventListener('click', () => {
+        const result = state.converter.lastResult;
+        if (!result) return;
+        if (!result.valid) return;
+        const system = state.converter.targetSystem;
+        copyText(
+            SYSTEMS[system].name +
+                ': ' +
+                formatLayoutText(system, [
+                    result.val1,
+                    result.val2,
+                    result.val3,
+                ]),
+        );
+    });
+    document
+        .getElementById('copy-pap-result')
+        ?.addEventListener('click', () => {
+            if (state.adjuster.resultText) copyText(state.adjuster.resultText);
+        });
+    document
+        .querySelectorAll('[data-open-drilling]')
+        .forEach((button) =>
+            button.addEventListener('click', () =>
+                document.getElementById('tab-drilling').click(),
+            ),
+        );
+    document
+        .querySelectorAll('[data-camera]')
+        .forEach((button) =>
+            button.addEventListener('click', () =>
+                visualizer?.setCameraView(button.dataset.camera),
+            ),
+        );
 }
 
 document.addEventListener('DOMContentLoaded', init);
