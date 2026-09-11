@@ -118,11 +118,11 @@
                         for="grip-select"
                         data-i18n="label_grip"
                     >
-                        그립 유형
+                        지공 형태
                     </label>
                     <select id="grip-select" class="compact-select">
                         <option value="3finger" data-i18n="opt_3finger">
-                            3핑거
+                            쓰리핑거
                         </option>
                         <option value="thumbless" data-i18n="opt_thumbless">
                             덤리스
@@ -148,7 +148,7 @@
                 >
                     <div class="intro">
                         <h1 data-i18n="sec_converter_title">
-                            같은 레이아웃, 다른 표기.
+                            레이아웃 표기 바꾸기
                         </h1>
                         <p class="subtitle" data-i18n="sec_converter_desc"></p>
                     </div>
@@ -164,7 +164,7 @@
                                     data-i18n="label_over_right"
                                     id="conv-pap-over-label"
                                 >
-                                    label_over_right
+                                    오른쪽(오버)
                                 </label>
                                 <input
                                     id="converter-pap-over"
@@ -179,7 +179,7 @@
                                     for="converter-pap-up"
                                     data-i18n="label_up"
                                 >
-                                    label_up
+                                    업(+) / 다운(−)
                                 </label>
                                 <input
                                     id="converter-pap-up"
@@ -199,24 +199,24 @@
                                         id="source-layout-title"
                                         data-i18n="grp_source"
                                     >
-                                        원본
+                                        기존 레이아웃
                                     </h2>
                                     <label
                                         class="sr-only"
                                         for="source-system"
                                         data-i18n="label_system"
                                     >
-                                        시스템
+                                        레이아웃 시스템
                                     </label>
                                     <select id="source-system">
                                         <option
                                             value="dual_angle"
                                             data-i18n="sys_dual_angle"
                                         >
-                                            Dual Angle
+                                            듀얼 앵글
                                         </option>
                                         <option value="vls" data-i18n="sys_vls">
-                                            VLS · Pin Buffer
+                                            VLS · 핀 버퍼
                                         </option>
                                         <option value="2ls" data-i18n="sys_2ls">
                                             2LS
@@ -265,21 +265,21 @@
                                         for="target-system"
                                         data-i18n="label_system"
                                     >
-                                        시스템
+                                        레이아웃 시스템
                                     </label>
                                     <select id="target-system">
                                         <option
                                             value="dual_angle"
                                             data-i18n="sys_dual_angle"
                                         >
-                                            Dual Angle
+                                            듀얼 앵글
                                         </option>
                                         <option
                                             value="vls"
                                             selected
                                             data-i18n="sys_vls"
                                         >
-                                            VLS · Pin Buffer
+                                            VLS · 핀 버퍼
                                         </option>
                                         <option value="2ls" data-i18n="sys_2ls">
                                             2LS
@@ -338,18 +338,10 @@
                                     <button
                                         type="button"
                                         class="text-btn"
-                                        data-camera="top"
-                                        data-i18n="view_top"
-                                    >
-                                        위에서
-                                    </button>
-                                    <button
-                                        type="button"
-                                        class="text-btn"
                                         data-camera="reset"
                                         data-i18n="view_reset"
                                     >
-                                        초기화
+                                        시점 초기화
                                     </button>
                                 </div>
                             </div>
@@ -377,7 +369,7 @@
                                     aria-live="polite"
                                     data-i18n="vis_loading"
                                 >
-                                    3D 불러오는 중
+                                    3D 미리보기를 불러오는 중입니다...
                                 </p>
                                 <div
                                     class="vis-overlay"
@@ -385,20 +377,24 @@
                                 ></div>
                             </div>
                             <p class="preview-hint" data-i18n="vis_interaction">
-                                드래그하여 회전 · 스크롤하여 확대
+                                드래그로 회전 · 휠로 확대·축소 · 방향키로 회전
                             </p>
                         </div>
                         <aside class="explanation">
                             <span class="eyebrow" data-i18n="guide_eyebrow">
-                                HOW IT WORKS
+                                레이아웃 용어
                             </span>
                             <h2 data-i18n="guide_title">
-                                표기가 달라도, 위치는 그대로.
+                                기준점과 거리 알아보기
                             </h2>
                             <p data-i18n="guide_body"></p>
                             <dl class="glossary">
                                 <div>
-                                    <dt>Pin</dt>
+                                    <dt>PAP</dt>
+                                    <dd data-i18n="help_pap"></dd>
+                                </div>
+                                <div>
+                                    <dt data-i18n="term_pin">핀(Pin)</dt>
                                     <dd data-i18n="help_pin"></dd>
                                 </div>
                                 <div>
@@ -412,6 +408,10 @@
                                 <div>
                                     <dt>COG</dt>
                                     <dd data-i18n="help_cog"></dd>
+                                </div>
+                                <div>
+                                    <dt data-i18n="term_buffer">핀 버퍼</dt>
+                                    <dd data-i18n="help_buffer"></dd>
                                 </div>
                             </dl>
                             <button
@@ -438,12 +438,12 @@
                     tabindex="0"
                 >
                     <div class="intro">
-                        <h1 data-i18n="sec_adj_title">내 PAP로 다시 읽기.</h1>
+                        <h1 data-i18n="sec_adj_title">새 PAP 기준으로 확인하기</h1>
                         <p class="subtitle" data-i18n="sec_adj_desc"></p>
                     </div>
                     <div class="pap-grid translator">
                         <div class="input-column">
-                            <h2 data-i18n="grp_initial">기존 기준</h2>
+                            <h2 data-i18n="grp_initial">기존 PAP와 레이아웃</h2>
                             <div class="form-row">
                                 <div class="field">
                                     <label
@@ -451,7 +451,7 @@
                                         data-i18n="label_old_pap_over_right"
                                         id="old-pap-over-label"
                                     >
-                                        label_old_pap_over_right
+                                        기존 오른쪽(오버)
                                     </label>
                                     <input
                                         id="old-pap-over"
@@ -466,7 +466,7 @@
                                         for="old-pap-up"
                                         data-i18n="label_old_pap_up"
                                     >
-                                        label_old_pap_up
+                                        기존 업(+) / 다운(−)
                                     </label>
                                     <input
                                         id="old-pap-up"
@@ -481,17 +481,17 @@
                                 for="adjuster-system"
                                 data-i18n="label_system"
                             >
-                                시스템
+                                레이아웃 시스템
                             </label>
                             <select id="adjuster-system">
                                 <option
                                     value="dual_angle"
                                     data-i18n="sys_dual_angle"
                                 >
-                                    Dual Angle
+                                    듀얼 앵글
                                 </option>
                                 <option value="vls" data-i18n="sys_vls">
-                                    VLS · Pin Buffer
+                                    VLS · 핀 버퍼
                                 </option>
                                 <option value="2ls" data-i18n="sys_2ls">
                                     2LS
@@ -512,7 +512,7 @@
                                         data-i18n="label_new_pap_over_right"
                                         id="new-pap-over-label"
                                     >
-                                        label_new_pap_over_right
+                                        새 오른쪽(오버)
                                     </label>
                                     <input
                                         id="new-pap-over"
@@ -527,7 +527,7 @@
                                         for="new-pap-up"
                                         data-i18n="label_new_pap_up"
                                     >
-                                        label_new_pap_up
+                                        새 업(+) / 다운(−)
                                     </label>
                                     <input
                                         id="new-pap-up"
@@ -592,18 +592,10 @@
                                 <button
                                     type="button"
                                     class="text-btn"
-                                    data-camera="top"
-                                    data-i18n="view_top"
-                                >
-                                    위에서
-                                </button>
-                                <button
-                                    type="button"
-                                    class="text-btn"
                                     data-camera="reset"
                                     data-i18n="view_reset"
                                 >
-                                    초기화
+                                    시점 초기화
                                 </button>
                             </div>
                         </div>
@@ -631,12 +623,12 @@
                                 aria-live="polite"
                                 data-i18n="vis_loading"
                             >
-                                3D 불러오는 중
+                                3D 미리보기를 불러오는 중입니다...
                             </p>
                             <div class="vis-overlay" aria-hidden="true"></div>
                         </div>
                         <p class="preview-hint" data-i18n="vis_interaction">
-                            드래그하여 회전 · 스크롤하여 확대
+                            드래그로 회전 · 휠로 확대·축소 · 방향키로 회전
                         </p>
                     </div>
                 </section>
@@ -748,7 +740,7 @@
                                                 scope="row"
                                                 data-i18n="drill_diameter"
                                             >
-                                                drill_diameter
+                                                홀 사이즈
                                             </th>
                                             <td>
                                                 <label
@@ -798,7 +790,7 @@
                                                 scope="row"
                                                 data-i18n="drill_depth"
                                             >
-                                                drill_depth
+                                                홀 깊이
                                             </th>
                                             <td>
                                                 <label
@@ -848,7 +840,7 @@
                                                 scope="row"
                                                 data-i18n="drill_lateral"
                                             >
-                                                drill_lateral
+                                                좌우 피치
                                             </th>
                                             <td>
                                                 <label
@@ -898,7 +890,7 @@
                                                 scope="row"
                                                 data-i18n="drill_forward"
                                             >
-                                                drill_forward
+                                                전후 피치
                                             </th>
                                             <td>
                                                 <label
@@ -993,18 +985,10 @@
                                 <button
                                     type="button"
                                     class="text-btn"
-                                    data-camera="top"
-                                    data-i18n="view_top"
-                                >
-                                    위에서
-                                </button>
-                                <button
-                                    type="button"
-                                    class="text-btn"
                                     data-camera="reset"
                                     data-i18n="view_reset"
                                 >
-                                    초기화
+                                    시점 초기화
                                 </button>
                             </div>
                         </div>
@@ -1032,12 +1016,12 @@
                                 aria-live="polite"
                                 data-i18n="vis_loading"
                             >
-                                3D 불러오는 중
+                                3D 미리보기를 불러오는 중입니다...
                             </p>
                             <div class="vis-overlay" aria-hidden="true"></div>
                         </div>
                         <p class="preview-hint" data-i18n="vis_interaction">
-                            드래그하여 회전 · 스크롤하여 확대
+                            드래그로 회전 · 휠로 확대·축소 · 방향키로 회전
                         </p>
                     </div>
                 </section>
@@ -1051,7 +1035,7 @@
                         rel="noopener"
                         data-i18n="source_storm"
                     >
-                        Storm 레이아웃 자료
+                        스톰 레이아웃 자료
                     </a>
                     <a
                         href="https://bowl.com/getmedia/7b8b2ee2-cd3a-4fe1-ba31-1389d8fc9bbf/es_manual.pdf"
@@ -1060,6 +1044,14 @@
                         data-i18n="source_usbc"
                     >
                         USBC 규격
+                    </a>
+                    <a
+                        href="https://www.bowlingin.co.kr/news/articleView.html?idxno=47028"
+                        target="_blank"
+                        rel="noopener"
+                        data-i18n="source_korean"
+                    >
+                        한국어 지공 설명
                     </a>
                 </div>
             </footer>

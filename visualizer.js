@@ -352,8 +352,7 @@ class BowlingVisualizer {
 
     setCameraView(view) {
         if (!this.camera) return;
-        if (view === 'top') this.camera.position.set(0, 19, 0.01);
-        else if (view === 'reset')
+        if (view === 'reset')
             this.camera.position.set(
                 this.currentHand === 'left' ? -4 : 4,
                 3,

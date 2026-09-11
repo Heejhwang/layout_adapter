@@ -767,6 +767,7 @@ footer {
 }
 footer > div {
     display: flex;
+    flex-wrap: wrap;
     gap: 20px;
 }
 footer a {
