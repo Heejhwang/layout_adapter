@@ -50,6 +50,34 @@ test('all 2LS presets and both hands render identical measured arcs with opposit
  }
  v.dispose();
 });
+test('cached ball-surface uniforms follow grip switches and edited drilling dimensions', () => {
+ const h=harness(),v=h.create();
+ // Three.js reuses this compiled shader when the program cache key is unchanged.
+ // Keep its original uniforms instead of invoking onBeforeCompile after every edit.
+ const shader={uniforms:{},vertexShader:'#include <begin_vertex>',fragmentShader:'#include <clipping_planes_fragment>'};
+ v.ballMesh.material.onBeforeCompile(shader);
+ const rendered=shader.uniforms;
+ const checkSurfaceMatchesWalls=()=>{
+  for(const [i,key] of ['leftFinger','rightFinger','thumb'].entries()){
+   const hole=v.holes[key]?.userData;
+   close(rendered.drillRadii.value[i],hole?.radius||0);
+   close(rendered.drillDepths.value[i],hole?.depth||0);
+   rendered.drillCenters.value[i].toArray().forEach((x,j)=>close(x,hole?.center[j]||0));
+   rendered.drillAxes.value[i].toArray().forEach((x,j)=>close(x,hole?.axis[j]??[0,0,-1][j]));
+  }
+ };
+ checkSurfaceMatchesWalls();
+ for(let repeat=0;repeat<3;repeat++){
+  v.setGripType('thumbless');checkSurfaceMatchesWalls();
+  v.setDrillingChart(h.window.DrillingMath.resolve({bridge:.375,middleDiameter:1,middleDepth:1.75,middleLateral:-.5},'thumbless'));
+  checkSurfaceMatchesWalls();
+  v.setGripType('3finger');checkSurfaceMatchesWalls();
+  v.setDrillingChart(h.window.DrillingMath.resolve({middleSpan:4.25,ringSpan:4,thumbDiameter:1.125,thumbDepth:3}));
+  checkSurfaceMatchesWalls();
+ }
+ v.dispose();
+});
+
 test('chart and layout updates dispose replaced resources and hide invalid geometry',()=>{
  const h=harness(),v=h.create();v.updateLayout(data);
  const oldHole=v.holes.leftFinger,oldLine=v.lines[0];const holeDisposed=watchDispose(oldHole.geometry),lineDisposed=watchDispose(oldLine.geometry);

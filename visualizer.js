@@ -388,22 +388,26 @@ class BowlingVisualizer {
         this.group.add(this.holeGroup);
         this.holes = {};
         const holes = resolved.holes;
-        const uniforms = {
+        // A cached Three.js program retains the uniform objects from its first
+        // onBeforeCompile call. Update those objects in place so the surface cuts
+        // always match the rebuilt hole walls, including a removed thumb hole.
+        const uniforms = this.drillUniforms || {
             drillCenters: {
-                value: [0, 1, 2].map(
-                    (i) =>
-                        new THREE.Vector3(...(holes[i]?.center || [0, 0, 0])),
-                ),
+                value: [0, 1, 2].map(() => new THREE.Vector3()),
             },
             drillAxes: {
-                value: [0, 1, 2].map(
-                    (i) => new THREE.Vector3(...(holes[i]?.axis || [0, 0, -1])),
-                ),
+                value: [0, 1, 2].map(() => new THREE.Vector3(0, 0, -1)),
             },
-            drillRadii: { value: [0, 1, 2].map((i) => holes[i]?.radius || 0) },
-            drillDepths: { value: [0, 1, 2].map((i) => holes[i]?.depth || 0) },
+            drillRadii: { value: [0, 0, 0] },
+            drillDepths: { value: [0, 0, 0] },
         };
         this.drillUniforms = uniforms;
+        for (let i = 0; i < 3; i++) {
+            uniforms.drillCenters.value[i].fromArray(holes[i]?.center || [0, 0, 0]);
+            uniforms.drillAxes.value[i].fromArray(holes[i]?.axis || [0, 0, -1]);
+            uniforms.drillRadii.value[i] = holes[i]?.radius || 0;
+            uniforms.drillDepths.value[i] = holes[i]?.depth || 0;
+        }
         const header =
             'varying vec3 vDrillLocal; uniform vec3 drillCenters[3]; uniform vec3 drillAxes[3]; uniform float drillRadii[3]; uniform float drillDepths[3];';
         const inside = (index) =>
